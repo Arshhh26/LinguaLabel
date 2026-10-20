@@ -70,8 +70,17 @@ Before using it in a real annotation project, follow that project's own instruct
 - Implemented local CSV persistence so annotations can be saved and reviewed without a cloud service.
 ## Screenshots
 
-### Annotation Interface
-![LinguaLabel Annotation Interface](screenshots/annotation.png)
+### 1. Annotation Workspace
+Interactive labeling studio featuring sentence tokenization metrics, multilingual text display (English & Hindi), schema selection forms, live validation checklist, and annotator note-taking.
 
-### Dataset Overview & Search Filters
-![LinguaLabel Dataset Overview](screenshots/dashboard.png)
+![LinguaLabel Annotation Workspace](screenshots/annotation.png)
+
+### 2. Quality Analytics Dashboard
+Live metrics tracking overall annotation progress, coverage percentage, label distributions (Language, Sentiment, and Text Type), and review triage queue.
+
+![LinguaLabel Quality Analytics Dashboard](screenshots/quality_dashboard.png)
+
+### 3. Dataset Overview & Search Filters
+Searchable and filterable data explorer allowing multi-attribute filtering (language, sentiment, review status), tabular dataset inspection, and UTF-8 CSV exports.
+
+![LinguaLabel Dataset Overview](screenshots/dataset_overview.png)
