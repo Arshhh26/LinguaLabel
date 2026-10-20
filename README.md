@@ -68,3 +68,10 @@ Before using it in a real annotation project, follow that project's own instruct
 - Built a Streamlit tool for manually labeling English and Hindi text by language, sentiment, and text type.
 - Added review statuses, annotator notes, and CSV export to support consistent annotation and quality checks.
 - Implemented local CSV persistence so annotations can be saved and reviewed without a cloud service.
+## Screenshots
+
+### Annotation Interface
+![LinguaLabel Annotation Interface](screenshots/annotation.png)
+
+### Dataset Overview & Search Filters
+![LinguaLabel Dataset Overview](screenshots/dashboard.png)
