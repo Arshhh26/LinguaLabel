@@ -1,0 +1,24 @@
+{
+  "positive_words": [
+    "good", "great", "excellent", "happy", "happiness", "joy", "love", "loved",
+    "best", "fantastic", "wonderful", "awesome", "pleased", "excited", "success",
+    "successful", "nice", "beautiful", "enjoyed", "enjoy", "glad", "delighted",
+    "superb", "brilliant", "fabulous", "terrific", "positive", "perfect",
+    "smooth", "helpful", "friendly", "kind", "blessed", "pleasant", "like",
+    "thank", "thanks"
+  ],
+  "negative_words": [
+    "bad", "terrible", "horrible", "sad", "unhappy", "hate", "hated", "worst",
+    "awful", "angry", "disappointed", "disappointing", "poor", "delay", "delayed",
+    "cancelled", "problem", "issues", "issue", "fail", "failed", "failure",
+    "upset", "defect", "defective", "broken", "pain", "painful", "horrid",
+    "rude", "slow", "frustrated", "frustrating", "waste", "loss", "useless"
+  ],
+  "negation_tokens": [
+    "not", "no", "never", "n't", "hardly", "scarcely", "barely", "neither",
+    "without", "none"
+  ],
+  "intensifiers": [
+    "very", "extremely", "really", "incredibly", "super", "highly", "deeply"
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "question_markers": {
+    "symbols": ["?", "؟"],
+    "english_starters": [
+      "what", "why", "when", "where", "who", "whom", "whose", "which", "how",
+      "is", "are", "am", "can", "could", "would", "will", "shall", "should",
+      "do", "does", "did", "have", "has", "had"
+    ],
+    "hindi_keywords": [
+      "क्या", "क्यों", "कब", "कहाँ", "कहां", "कौन", "किसे", "किस", "कैसे",
+      "कितना", "कितनी", "कितने", "किसलिए"
+    ]
+  },
+  "greeting_markers": {
+    "english_keywords": [
+      "hello", "hi", "hey", "good morning", "good afternoon", "good evening",
+      "welcome", "greetings", "bye", "goodbye", "see you", "take care"
+    ],
+    "hindi_keywords": [
+      "नमस्ते", "नमस्कार", "प्रणाम", "सलाम", "शुभ प्रभात", "शुभ रात्रि",
+      "अलविदा", "जय हिन्द", "जय हिंद", "आदाब"
+    ]
+  },
+  "request_markers": {
+    "english_keywords": [
+      "please", "kindly", "request", "could you", "would you mind",
+      "make sure", "ensure", "submit", "click", "check", "verify",
+      "follow", "don't forget to", "do not forget"
+    ],
+    "hindi_keywords": [
+      "कृपया", "विनती", "अनुरोध", "मेहरबानी", "कीजिए", "कीजिये", "करें",
+      "दें", "दीजिए", "दीजिये", "बताएं", "बताइए", "मत भूलें", "अवश्य"
+    ]
+  }
+}

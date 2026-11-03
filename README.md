@@ -1,86 +1,164 @@
-# LinguaLabel — Multilingual Text Annotation & Quality Review
+# LinguaLabel — Multilingual Text Annotation & Quality Studio
 
-A beginner-friendly, human-in-the-loop annotation tool for English and Hindi sample sentences. It is designed to demonstrate careful labeling, uncertainty handling, review notes, and CSV data quality workflows.
+A production-grade, human-in-the-loop annotation platform and quality review system for multilingual text (English, Hindi, and transliterated scripts). LinguaLabel pairs an intuitive, Linear/Vercel-inspired dark-mode user interface with modular machine learning inference, robust dataset ingestion, and strict quality assurance validation rules.
 
-## Features
+---
 
-- Review one sentence at a time
-- Assign language, sentiment, and text-type labels
-- Mark an item as reviewed, needing a second review, ambiguous, or skipped
-- Add notes to explain uncertain decisions
-- Save work locally to `annotated_output.csv`
-- View the full dataset and download CSV files
+## Key Features
 
-## Requirements
+### 1. Multi-Source Dataset Ingestion & Column Mapping
+- **Built-in Sample Dataset**: Ships with a curated 20-sentence seed dataset covering English, Devanagari Hindi, and transliterated utterances.
+- **Custom CSV Upload**: Upload any CSV dataset with automatic encoding detection (`utf-8`, `utf-8-sig`, `latin-1`, `cp1252`) and delimiter detection (comma, tab, semicolon).
+- **Interactive Column Selector**: Preview uploaded data and dynamically choose which column contains the text to annotate (auto-detects `text`, `sentence`, `content`, `utterance`, `review`).
+- **Deterministic Stable IDs**: Preserves existing `id` columns or generates deterministic content hashes to guarantee annotation stability across reruns.
+- **Storage Isolation**: Saves annotations separately per dataset source, guaranteeing that uploaded datasets never overwrite sample annotations.
 
-- Python 3.10 or newer
-- Internet access for the initial installation of packages (the app itself processes data locally)
+### 2. Human-in-the-Loop Annotation Studio
+- **Advisory ML Assistance**: Suggests labels for Language, Sentiment, and Text Type with calibrated confidence scores (e.g., `96% confidence`) and transparent provenance pills (`Script Heuristic`, `Lexicon Rules`, `N-Gram Classifier`).
+- **Non-Destructive Contract**: AI predictions are strictly advisory; they populate form controls only upon explicit user request and never commit to disk without human confirmation.
+- **Uncertainty Guardrails**: Predictions with confidence below 60% are flagged with an explicit `⚠️ Low confidence` alert and default to `Uncertain`, prompting annotators for mandatory explanatory notes.
+- **1-Click Suggestion Application**: Apply individual suggestions or use the **Accept All Suggestions** button for fast triage.
+- **Navigation Safety & Auto-Save**: Prevents data loss by checking for unsaved changes during navigation (`Previous`, `Next`, `Jump to Sentence`, `Go to Next Unreviewed`). Automatically saves valid edits and alerts the user if required fields are missing.
 
-## Run on Linux (Fedora) or Windows
+### 3. Rigorous Quality Validation Rules
+The platform enforces four mandatory quality validation rules before marking records as reviewed:
+1. **Full Schema Completion**: All four schema fields (`language`, `sentiment`, `text_type`, `review_status`) must be selected.
+2. **Mandatory Uncertainty Notes**: Any label marked as `Uncertain` requires an explanatory annotator note.
+3. **Reviewed Status Lockout**: Marking as `Reviewed — looks correct` is blocked if any label is empty or uncertain.
+4. **Triage Rationale**: Explanatory notes are required for any triage status (`Needs second review`, `Ambiguous`, `Skip`).
 
-Open a terminal in this project folder.
+### 4. Modular Machine Learning Engine (`ml/`)
+- **Language Identification**: Fast Unicode script heuristic evaluating Devanagari codepoints (`U+0900..U+097F`) vs. Basic Latin (`A..Za..z`), paired with character n-gram TF-IDF for ambiguous or transliterated text.
+- **Sentiment Polarity**: Curated bilingual polarity lexicons with contextual bidirectional negation parsing (`नहीं`, `मत`, `ना` in Hindi; `not`, `never`, `no` in English) plus statistical TF-IDF classification.
+- **Text Type Classification**: Syntactic token matcher identifying questions (`?`, `क्या`, `who`, `why`), greetings (`नमस्ते`, `hello`), and requests (`कृपया`, `please`), backed by an n-gram intent classifier.
+- **Empirical Evaluation CLI**: Run `python -m ml.evaluate` to compute exact accuracy, precision, recall, macro-F1, and confusion matrices against ground truth.
 
-### 1. Create a virtual environment
+### 5. Quality Analytics & Data Explorer
+- **Quality Dashboard**: Real-time progress tracking, reviewed vs. pending counts, label distribution charts, and quality queue reviews.
+- **Dataset Overview & Triage Queues**: Quick-filter by `All Records`, `Pending / Unreviewed`, `Completed / Reviewed`, and `Follow-Up Queue`, combined with full-text keyword search.
+- **UTF-8 with BOM Export**: Download filtered or complete datasets encoded in `utf-8-sig` to preserve Devanagari Hindi characters cleanly in Excel, pandas, and external tools.
 
-Linux / Fedora:
+---
+
+## Installation & Setup
+
+### Requirements
+- Python 3.10 or newer (tested on Python 3.14.8)
+- Virtual environment recommended
+
+### 1. Clone & Set Up Environment
 ```bash
+# Clone the repository
+git clone https://github.com/Arshhh26/LinguaLabel.git
+cd LinguaLabel
+
+# Create and activate virtual environment
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\Activate.ps1
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-Windows PowerShell:
-```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
-
-### 2. Install dependencies
-
-```bash
-python -m pip install -r requirements.txt
-```
-
-### 3. Launch the app
-
+### 2. Launch the Web Application
 ```bash
 streamlit run app.py
 ```
+Open `http://localhost:8501` in your browser.
 
-Streamlit will print a local URL, usually `http://localhost:8501`. Open it in your browser.
+---
 
-## Annotation schema
+## Annotation Schema
 
-- `language`: English, Hindi, Other, Uncertain
-- `sentiment`: Positive, Negative, Neutral, Not applicable, Uncertain
-- `text_type`: Statement, Question, Request / Instruction, Greeting, Other, Uncertain
-- `review_status`: Reviewed — looks correct, Needs second review, Ambiguous, Skip
-- `annotator_notes`: optional explanation
+| Field | Allowed Values | Description |
+|---|---|---|
+| `language` | `English`, `Hindi`, `Other`, `Uncertain` | Detected or verified language script/vocabulary. |
+| `sentiment` | `Positive`, `Negative`, `Neutral`, `Not applicable`, `Uncertain` | Polarity of the sentence; use *Not applicable* for factual directives. |
+| `text_type` | `Statement`, `Question`, `Request / Instruction`, `Greeting`, `Other`, `Uncertain` | Communicative intent or syntactic form. |
+| `review_status` | `Reviewed — looks correct`, `Needs second review`, `Ambiguous`, `Skip` | Triage state for human review pipelines. |
+| `annotator_notes` | Free-form text | Explanatory rationale (mandatory for uncertain/triage items). |
 
-## Important
+---
 
-This project does not automatically determine the correct labels. You make the annotation decisions using the written guidelines. The example dataset is a practice dataset, not an official dataset from any employer or client.
+## Running the Automated Test Suite
 
-Before using it in a real annotation project, follow that project's own instructions and label definitions. Do not claim professional annotation experience based only on this practice project.
+LinguaLabel includes a comprehensive test suite (45 tests) covering data ingestion, workflow validation, ML detectors, navigation edge cases, and graceful degradation:
 
-## Suggested portfolio description (after you have actually completed it)
+```bash
+# Run full pytest suite
+python -m pytest
+```
 
-**LinguaLabel — Multilingual Text Annotation & Quality Review**
-- Built a Streamlit tool for manually labeling English and Hindi text by language, sentiment, and text type.
-- Added review statuses, annotator notes, and CSV export to support consistent annotation and quality checks.
-- Implemented local CSV persistence so annotations can be saved and reviewed without a cloud service.
+### Test Suite Structure
+- `tests/test_upload_and_ids.py`: Multi-encoding CSV parsing, column detection, delimiter sniffing, and stable deterministic IDs.
+- `tests/test_part1_integration.py`: Ingestion pipeline integration and storage path isolation.
+- `tests/test_workflow.py`: The 4 validation rules, boundary navigation safety, next-unreviewed resolution, and UTF-8-SIG export.
+- `tests/test_ml_language.py`: Script heuristic, Latin/Devanagari codepoint checks, transliterated text, and fallback behavior.
+- `tests/test_ml_sentiment.py`: Polarity scoring, bidirectional Hindi & English negation parsing, and neutrality detection.
+- `tests/test_ml_text_type.py`: Syntactic matching for questions, greetings, requests, and declarative statements.
+- `tests/test_degradation.py`: Graceful degradation, availability checks, and non-destructive contracts.
+
+---
+
+## Running Empirical Model Evaluation
+
+Evaluate the ML engine against ground truth labeled datasets without any fabricated numbers:
+
+```bash
+# Evaluate against default annotated output
+python -m ml.evaluate --dataset annotated_output.csv
+
+# Evaluate against custom ground truth dataset
+python -m ml.evaluate --dataset path/to/ground_truth.csv
+```
+
+Outputs formatted classification reports with:
+- Overall Accuracy
+- Macro-averaged Precision, Recall, and F1-Score
+- Per-class Precision, Recall, and F1-Score
+- Formatted Confusion Matrix (Actual vs. Predicted)
+
+---
+
+## Architecture Overview
+
+```
+LinguaLabel/
+├── app.py                     # Streamlit frontend & interactive annotation studio
+├── data_manager.py            # Ingestion, encodings, stable IDs, and storage isolation
+├── requirements.txt           # Project dependencies
+├── sample_data.csv            # Default seed multilingual dataset (20 sentences)
+├── ml/                        # Modular machine learning package
+│   ├── base.py                # PredictionResult dataclass & BasePredictor interface
+│   ├── engine.py              # MLEngine coordinator with is_available() checks
+│   ├── language_detector.py   # Script heuristics + char n-gram classifier
+│   ├── sentiment_detector.py  # Bilingual polarity lexicon + negation parser
+│   ├── text_type_detector.py  # Syntactic pattern matcher + intent classifier
+│   ├── evaluate.py            # Standalone CLI evaluation harness
+│   └── lexicons/              # Curated keyword & polarity dictionaries
+│       ├── hindi_sentiment.json
+│       ├── english_sentiment.json
+│       └── text_type_keywords.json
+├── tests/                     # 45 automated pytest suites
+│   ├── test_upload_and_ids.py
+│   ├── test_part1_integration.py
+│   ├── test_workflow.py
+│   ├── test_ml_language.py
+│   ├── test_ml_sentiment.py
+│   ├── test_ml_text_type.py
+│   └── test_degradation.py
+└── screenshots/               # UI preview screenshots
+```
+
+---
+
 ## Screenshots
 
 ### 1. Annotation Workspace
-Interactive labeling studio featuring sentence tokenization metrics, multilingual text display (English & Hindi), schema selection forms, live validation checklist, and annotator note-taking.
-
 ![LinguaLabel Annotation Workspace](screenshots/annotation.png)
 
 ### 2. Quality Analytics Dashboard
-Live metrics tracking overall annotation progress, coverage percentage, label distributions (Language, Sentiment, and Text Type), and review triage queue.
-
 ![LinguaLabel Quality Analytics Dashboard](screenshots/quality_dashboard.png)
 
 ### 3. Dataset Overview & Search Filters
-Searchable and filterable data explorer allowing multi-attribute filtering (language, sentiment, review status), tabular dataset inspection, and UTF-8 CSV exports.
-
 ![LinguaLabel Dataset Overview](screenshots/dataset_overview.png)

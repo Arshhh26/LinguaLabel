@@ -4,10 +4,24 @@ import pandas as pd
 import streamlit as st
 import altair as alt
 
+from data_manager import (
+    load_csv_bytes,
+    detect_text_column,
+    stabilize_dataset,
+    compute_dataset_key,
+    get_dataset_storage_path,
+    merge_saved_annotations,
+    validation_issues,
+    COLS,
+    SUPPORTED_ENCODINGS,
+)
+from ml.engine import MLEngine
+
+ml_engine = MLEngine()
+
 ROOT = Path(__file__).parent
 DATA = ROOT / "sample_data.csv"
 OUT = ROOT / "annotated_output.csv"
-COLS = ["language", "sentiment", "text_type", "review_status", "annotator_notes"]
 OPTIONS = {
     "language": ["— Select —", "English", "Hindi", "Other", "Uncertain"],
     "sentiment": ["— Select —", "Positive", "Negative", "Neutral", "Not applicable", "Uncertain"],
@@ -630,50 +644,133 @@ html, body, [class*="css"], .stApp {
 ::-webkit-scrollbar-thumb:hover {
     background: #334155;
 }
+
+/* ML Advisory Assistance Card */
+.ml-assistance-card {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(14, 165, 233, 0.05) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 12px;
+    padding: 1.1rem 1.25rem;
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.ml-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ml-card-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #e0e7ff;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.ml-advisory-badge {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: rgba(99, 102, 241, 0.15);
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    padding: 2px 7px;
+    border-radius: 4px;
+}
+
+.ml-suggestion-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.ml-suggestion-left {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.ml-suggestion-field {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #94a3b8;
+    min-width: 75px;
+}
+
+.ml-suggestion-val {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.ml-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.ml-badge-conf {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.ml-conf-high {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.ml-conf-med {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.ml-conf-low {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.ml-badge-method {
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: #cbd5e1;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.ml-uncertain-alert {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: 6px;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.72rem;
+    color: #fbbf24;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+}
 </style>
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# Data Persistence & Loading
-# -------------------------------------------------------------
-def get_data():
-    df = pd.read_csv(DATA, keep_default_na=False)
-    for c in COLS:
-        if c not in df:
-            df[c] = ""
-    if OUT.exists():
-        saved = pd.read_csv(OUT, keep_default_na=False)
-        if "id" in saved:
-            saved_cols = [c for c in COLS if c in saved.columns]
-            saved = saved[["id"] + saved_cols].drop_duplicates("id", keep="last")
-            # Normalize id types for safe, robust merging
-            df["_mid"] = df["id"].astype(str)
-            saved["_mid"] = saved["id"].astype(str)
-            cols_to_drop = [c for c in COLS if c in df.columns]
-            df = df.drop(columns=cols_to_drop)
-            df = df.merge(saved[["_mid"] + saved_cols], on="_mid", how="left").drop(columns=["_mid"])
-            for c in COLS:
-                if c not in df:
-                    df[c] = ""
-                df[c] = df[c].fillna("")
-    return df
-
-if not DATA.exists():
-    st.error("sample_data.csv must be in the same folder as app.py.")
-    st.stop()
-
-df = get_data()
-if df.empty:
-    st.warning("Dataset is empty.")
-    st.stop()
-
-total = len(df)
-processed = int(df["review_status"].astype(str).str.strip().ne("").sum())
-remaining = total - processed
-completion_pct = (processed / total) if total else 0.0
-
-# -------------------------------------------------------------
-# Sidebar
+# Data Persistence & Loading (Part 1 Multi-Source Architecture)
 # -------------------------------------------------------------
 with st.sidebar:
     st.markdown("""
@@ -703,8 +800,100 @@ with st.sidebar:
         label_visibility="collapsed"
     )
 
+    st.markdown('<div class="sidebar-section-title">Dataset Source</div>', unsafe_allow_html=True)
+    dataset_source_mode = st.radio(
+        "Dataset Source Mode",
+        ["Default Sample (20 sentences)", "Upload Custom CSV"],
+        key="dataset_source_mode_radio",
+        label_visibility="collapsed"
+    )
+
+    active_dataset_name = "sample_data.csv"
+    active_dataset_key = "default_sample"
+    text_column_selected = "text"
+    raw_df = None
+    upload_error = None
+    id_info = {}
+
+    if dataset_source_mode == "Upload Custom CSV":
+        uploaded_file = st.file_uploader(
+            "Upload CSV File",
+            type=["csv"],
+            key="custom_csv_uploader",
+            label_visibility="collapsed",
+            help="Upload a CSV with text to annotate. Original columns will be preserved."
+        )
+        if uploaded_file is not None:
+            file_bytes = uploaded_file.getvalue()
+            parsed_df, enc_used, parse_err = load_csv_bytes(file_bytes, uploaded_file.name)
+            if parse_err:
+                st.error(f"⚠️ {parse_err}")
+                upload_error = parse_err
+            elif parsed_df is not None and not parsed_df.empty:
+                raw_df = parsed_df
+                active_dataset_name = uploaded_file.name
+                active_dataset_key = compute_dataset_key(file_bytes)
+
+                candidate_col = detect_text_column(raw_df)
+                col_options = list(raw_df.columns)
+                default_cand_idx = col_options.index(candidate_col) if candidate_col in col_options else 0
+
+                st.markdown("<div style='font-size: 0.72rem; color: #94a3b8; margin: 4px 0 2px 0;'>Select text column:</div>", unsafe_allow_html=True)
+                text_column_selected = st.selectbox(
+                    "Select text column",
+                    options=col_options,
+                    index=default_cand_idx,
+                    key=f"text_col_select_{active_dataset_key}",
+                    label_visibility="collapsed"
+                )
+
+                with st.expander(f"🔍 Dataset Preview ({len(raw_df)} rows)", expanded=False):
+                    st.caption(f"Encoding: `{enc_used}` · Total Columns: {len(raw_df.columns)}")
+                    preview_cols = [text_column_selected] + [c for c in raw_df.columns if c != text_column_selected][:3]
+                    st.dataframe(raw_df[preview_cols].head(4), hide_index=True, use_container_width=True)
+        else:
+            st.info("Upload a CSV file above, or switch back to the Default Sample.")
+
+    # Fallback to default sample if custom upload is not provided or had error
+    if raw_df is None:
+        if not DATA.exists():
+            st.error("sample_data.csv must be in the same folder as app.py.")
+            st.stop()
+        raw_df = pd.read_csv(DATA, keep_default_na=False, dtype=str)
+        active_dataset_key = "default_sample"
+        active_dataset_name = "sample_data.csv"
+        text_column_selected = "text"
+
+    # Reset active item index if dataset changed
+    if st.session_state.get("current_dataset_key") != active_dataset_key:
+        st.session_state.current_dataset_key = active_dataset_key
+        st.session_state.idx = 0
+
+    # Stabilize dataset: normalize IDs, map text column, retain original columns
+    stable_df, id_info = stabilize_dataset(raw_df, text_column=text_column_selected, dataset_key=active_dataset_key)
+    if id_info.get("id_generated") and dataset_source_mode == "Upload Custom CSV":
+        st.caption(f"ℹ️ Generated stable IDs ({id_info['id_reason']}).")
+    if id_info.get("empty_text_rows", 0) > 0:
+        st.caption(f"⚠️ {id_info['empty_text_rows']} rows have empty text.")
+
+    # Designate isolated storage path
+    OUT = get_dataset_storage_path(active_dataset_key, ROOT)
+
+    # Load and merge saved annotations
+    def get_data():
+        return merge_saved_annotations(stable_df.copy(), OUT)
+
+    df = get_data()
+    if df.empty:
+        st.warning("Dataset is empty.")
+        st.stop()
+
+    total = len(df)
+    processed = int(df["review_status"].astype(str).str.strip().ne("").sum())
+    remaining = total - processed
+    completion_pct = (processed / total) if total else 0.0
+
     st.markdown('<div class="sidebar-section-title">Dataset Metrics</div>', unsafe_allow_html=True)
-    
     st.markdown(f"""
     <div class="sidebar-card">
         <div class="sidebar-card-label">Annotation Progress</div>
@@ -727,12 +916,26 @@ with st.sidebar:
 
     st.progress(completion_pct)
 
-    st.markdown("""
+    st.markdown(f"""
     <div style="margin-top: 1.5rem; padding: 0.75rem; border-radius: 8px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.72rem; color: #64748b;">
         <div style="font-weight: 600; color: #94a3b8; margin-bottom: 2px;">● Local Persistence</div>
-        Saved annotations automatically write to <code>annotated_output.csv</code>.
+        Saved annotations automatically write to <code>{OUT.name}</code>.
     </div>
     """, unsafe_allow_html=True)
+
+    st.markdown('<div class="sidebar-section-title">AI Assistance</div>', unsafe_allow_html=True)
+    enable_ml_suggestions = st.checkbox(
+        "Enable ML Suggestions",
+        value=True,
+        key="enable_ml_suggestions_toggle",
+        help="Display advisory model suggestions, confidence scores, and provenance in the workspace."
+    )
+
+# Compute export filenames
+safe_dataset_stem = Path(active_dataset_name).stem.replace(" ", "_")
+download_annotated_name = "annotated_output.csv" if active_dataset_key == "default_sample" else f"annotated_{safe_dataset_stem}.csv"
+download_filtered_name = "lingualabel_filtered.csv" if active_dataset_key == "default_sample" else f"filtered_{safe_dataset_stem}.csv"
+download_dataset_name = "lingualabel_dataset.csv" if active_dataset_key == "default_sample" else f"dataset_{safe_dataset_stem}.csv"
 
 
 # =============================================================
@@ -903,7 +1106,7 @@ if view == "Quality dashboard":
             st.download_button(
                 "📥 Download Annotated CSV",
                 df.to_csv(index=False).encode("utf-8-sig"),
-                "annotated_output.csv",
+                download_annotated_name,
                 "text/csv",
                 use_container_width=True
             )
@@ -937,7 +1140,23 @@ if view == "Dataset overview":
         with f_col3:
             status_filter = st.selectbox("Review status filter", ["All"] + OPTIONS["review_status"][1:])
 
+        st.markdown('<div style="font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #94a3b8; margin: 0.6rem 0 0.3rem 0;">Triage Queue Quick Filters</div>', unsafe_allow_html=True)
+        quick_filter = st.radio(
+            "Triage Queue Quick Filters",
+            ["All Records", "Pending / Unreviewed", "Completed / Reviewed", "Follow-Up Queue (Needs review / Ambiguous / Skip)"],
+            horizontal=True,
+            key="dataset_overview_queue_filter",
+            label_visibility="collapsed"
+        )
+
     filtered = df.copy()
+    if quick_filter == "Pending / Unreviewed":
+        filtered = filtered[filtered["review_status"].astype(str).str.strip().eq("")]
+    elif quick_filter == "Completed / Reviewed":
+        filtered = filtered[filtered["review_status"].astype(str).str.strip().eq("Reviewed — looks correct")]
+    elif quick_filter.startswith("Follow-Up Queue"):
+        filtered = filtered[filtered["review_status"].astype(str).isin(["Needs second review", "Ambiguous", "Skip"])]
+
     if search_text.strip():
         filtered = filtered[filtered["text"].astype(str).str.contains(search_text.strip(), case=False, na=False, regex=False)]
     if language_filter != "All":
@@ -982,7 +1201,7 @@ if view == "Dataset overview":
             st.download_button(
                 f"📥 Download Filtered CSV ({len(filtered)} records)",
                 filtered.to_csv(index=False).encode("utf-8-sig"),
-                "lingualabel_filtered.csv",
+                download_filtered_name,
                 "text/csv",
                 use_container_width=True
             )
@@ -990,7 +1209,7 @@ if view == "Dataset overview":
             st.download_button(
                 f"💾 Download Full Dataset CSV ({len(df)} records)",
                 df.to_csv(index=False).encode("utf-8-sig"),
-                "lingualabel_dataset.csv",
+                download_dataset_name,
                 "text/csv",
                 use_container_width=True
             )
@@ -1063,8 +1282,34 @@ with selector_col1:
     )
     chosen_idx = sentence_labels.index(selected_label)
     if chosen_idx != idx:
-        st.session_state.idx = chosen_idx
-        st.rerun()
+        curr_saved_status = str(row.get("review_status", "")).strip() or "— Select —"
+        curr_widget_status = st.session_state.get(f"review_status_{row_id}", curr_saved_status)
+        curr_vals = {
+            col: st.session_state.get(f"{col}_{row_id}", str(row.get(col, "")).strip() or "— Select —")
+            for col in ["language", "sentiment", "text_type", "review_status"]
+        }
+        curr_vals["annotator_notes"] = st.session_state.get(f"notes_{row_id}", str(row.get("annotator_notes", "")))
+        curr_dirty = any(
+            curr_vals[col] != (str(row.get(col, "")).strip() or "— Select —")
+            for col in ["language", "sentiment", "text_type", "review_status"]
+        ) or (curr_vals["annotator_notes"].strip() != str(row.get("annotator_notes", "")).strip())
+
+        if curr_dirty:
+            issues = validation_issues(curr_vals)
+            if not issues:
+                current = get_data()
+                mask = current["id"].astype(str) == str(row_id)
+                for col, value in curr_vals.items():
+                    current.loc[mask, col] = value
+                current.to_csv(OUT, index=False, quoting=csv.QUOTE_MINIMAL, encoding="utf-8-sig")
+                st.session_state.idx = chosen_idx
+                st.rerun()
+            else:
+                st.session_state.nav_err = f"Cannot jump to sentence: Item #{row_id} has unsaved invalid changes. Please resolve validation requirements or revert your edits before jumping."
+                st.rerun()
+        else:
+            st.session_state.idx = chosen_idx
+            st.rerun()
 
 with selector_col2:
     st.progress((idx + 1) / total)
@@ -1141,6 +1386,112 @@ with left_col:
         """, unsafe_allow_html=True)
 
 with right_col:
+    # -------------------------------------------------------------
+    # ML Advisory Assistance Card (Human-in-the-Loop)
+    # -------------------------------------------------------------
+    if enable_ml_suggestions and ml_engine.is_available():
+        preds = ml_engine.predict_all(row_text)
+        has_uncertain = any(p.is_uncertain for p in preds.values())
+
+        with st.container(border=True):
+            st.markdown("""
+            <div class="ml-card-header">
+                <div class="ml-card-title">
+                    <span>✨</span> Advisory ML Suggestions
+                </div>
+                <div class="ml-advisory-badge">Advisory • Non-Committing</div>
+            </div>
+            <div style="font-size: 0.76rem; color: #94a3b8; margin-bottom: 0.65rem;">
+                Statistical & rule-based suggestions. Clicking populates the form without saving to disk.
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Language Row
+            pred_lang = preds["language"]
+            conf_class_lang = "ml-conf-high" if pred_lang.confidence >= 0.80 else ("ml-conf-med" if pred_lang.confidence >= 0.60 else "ml-conf-low")
+            c_l1, c_l2 = st.columns([3, 1.2])
+            with c_l1:
+                st.markdown(f"""
+                <div class="ml-suggestion-row">
+                    <div class="ml-suggestion-left">
+                        <span class="ml-suggestion-field">Language:</span>
+                        <span class="ml-suggestion-val">{pred_lang.label}</span>
+                    </div>
+                    <div class="ml-badges">
+                        <span class="ml-badge-conf {conf_class_lang}">{int(pred_lang.confidence * 100)}%</span>
+                        <span class="ml-badge-method">{pred_lang.method}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            with c_l2:
+                if st.button("Use", key=f"btn_use_lang_{row_id}", use_container_width=True, help=f"Use suggestion '{pred_lang.label}'"):
+                    if pred_lang.label in OPTIONS["language"]:
+                        st.session_state[f"language_{row_id}"] = pred_lang.label
+                        st.rerun()
+
+            # Sentiment Row
+            pred_sent = preds["sentiment"]
+            conf_class_sent = "ml-conf-high" if pred_sent.confidence >= 0.80 else ("ml-conf-med" if pred_sent.confidence >= 0.60 else "ml-conf-low")
+            c_s1, c_s2 = st.columns([3, 1.2])
+            with c_s1:
+                st.markdown(f"""
+                <div class="ml-suggestion-row">
+                    <div class="ml-suggestion-left">
+                        <span class="ml-suggestion-field">Sentiment:</span>
+                        <span class="ml-suggestion-val">{pred_sent.label}</span>
+                    </div>
+                    <div class="ml-badges">
+                        <span class="ml-badge-conf {conf_class_sent}">{int(pred_sent.confidence * 100)}%</span>
+                        <span class="ml-badge-method">{pred_sent.method}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            with c_s2:
+                if st.button("Use", key=f"btn_use_sent_{row_id}", use_container_width=True, help=f"Use suggestion '{pred_sent.label}'"):
+                    if pred_sent.label in OPTIONS["sentiment"]:
+                        st.session_state[f"sentiment_{row_id}"] = pred_sent.label
+                        st.rerun()
+
+            # Text Type Row
+            pred_tt = preds["text_type"]
+            conf_class_tt = "ml-conf-high" if pred_tt.confidence >= 0.80 else ("ml-conf-med" if pred_tt.confidence >= 0.60 else "ml-conf-low")
+            c_t1, c_t2 = st.columns([3, 1.2])
+            with c_t1:
+                st.markdown(f"""
+                <div class="ml-suggestion-row">
+                    <div class="ml-suggestion-left">
+                        <span class="ml-suggestion-field">Text Type:</span>
+                        <span class="ml-suggestion-val">{pred_tt.label}</span>
+                    </div>
+                    <div class="ml-badges">
+                        <span class="ml-badge-conf {conf_class_tt}">{int(pred_tt.confidence * 100)}%</span>
+                        <span class="ml-badge-method">{pred_tt.method}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            with c_t2:
+                if st.button("Use", key=f"btn_use_tt_{row_id}", use_container_width=True, help=f"Use suggestion '{pred_tt.label}'"):
+                    if pred_tt.label in OPTIONS["text_type"]:
+                        st.session_state[f"text_type_{row_id}"] = pred_tt.label
+                        st.rerun()
+
+            if has_uncertain:
+                st.markdown("""
+                <div class="ml-uncertain-alert">
+                    <span>⚠️</span>
+                    <span>Low confidence prediction detected. Annotator verification and rationale note required if used.</span>
+                </div>
+                """, unsafe_allow_html=True)
+
+            if st.button("⚡ Accept All Suggestions", key=f"btn_accept_all_{row_id}", use_container_width=True, help="Populate Language, Sentiment, and Text Type fields with suggestions."):
+                if pred_lang.label in OPTIONS["language"]:
+                    st.session_state[f"language_{row_id}"] = pred_lang.label
+                if pred_sent.label in OPTIONS["sentiment"]:
+                    st.session_state[f"sentiment_{row_id}"] = pred_sent.label
+                if pred_tt.label in OPTIONS["text_type"]:
+                    st.session_state[f"text_type_{row_id}"] = pred_tt.label
+                st.rerun()
+
     # Form Controls Card
     with st.container(border=True):
         st.markdown(f"""
@@ -1182,6 +1533,13 @@ with right_col:
 # -------------------------------------------------------------
 # Save Functionality & Live Validation Feedback
 # -------------------------------------------------------------
+is_dirty = any(
+    vals[c] != (str(row.get(c, "")).strip() or "— Select —")
+    for c in ["language", "sentiment", "text_type", "review_status"]
+) or (
+    vals["annotator_notes"].strip() != str(row.get("annotator_notes", "")).strip()
+)
+
 def save(show_errors=True):
     issues = validation_issues(vals)
     if issues:
@@ -1201,6 +1559,9 @@ def save(show_errors=True):
 # Display any banner messages from previous action
 if "msg" in st.session_state:
     st.success(st.session_state.pop("msg"))
+
+if "nav_err" in st.session_state:
+    st.warning(st.session_state.pop("nav_err"))
 
 # Live Validation Feedback Banner
 issues_now = validation_issues(vals)
@@ -1232,17 +1593,31 @@ btn_p, btn_n, btn_save, btn_unrev = st.columns([1, 1, 1.4, 1.4])
 
 with btn_p:
     if st.button("← Previous", disabled=(idx == 0), use_container_width=True):
-        if not validation_issues(vals):
-            save(show_errors=False)
-        st.session_state.idx = max(0, idx - 1)
-        st.rerun()
+        if is_dirty:
+            if not validation_issues(vals):
+                save(show_errors=False)
+                st.session_state.idx = max(0, idx - 1)
+                st.rerun()
+            else:
+                st.session_state.nav_err = f"Cannot navigate to Previous: Item #{row_id} has unsaved invalid changes. Please resolve validation requirements or revert changes before moving."
+                st.rerun()
+        else:
+            st.session_state.idx = max(0, idx - 1)
+            st.rerun()
 
 with btn_n:
     if st.button("Next →", disabled=(idx == total - 1), use_container_width=True):
-        if not validation_issues(vals):
-            save(show_errors=False)
-        st.session_state.idx = min(total - 1, idx + 1)
-        st.rerun()
+        if is_dirty:
+            if not validation_issues(vals):
+                save(show_errors=False)
+                st.session_state.idx = min(total - 1, idx + 1)
+                st.rerun()
+            else:
+                st.session_state.nav_err = f"Cannot navigate to Next: Item #{row_id} has unsaved invalid changes. Please resolve validation requirements or revert changes before moving."
+                st.rerun()
+        else:
+            st.session_state.idx = min(total - 1, idx + 1)
+            st.rerun()
 
 with btn_save:
     if st.button("💾 Save Annotation", type="primary", use_container_width=True):
@@ -1251,8 +1626,12 @@ with btn_save:
 
 with btn_unrev:
     if st.button("⏩ Go to Next Unreviewed", use_container_width=True):
-        if not validation_issues(vals):
-            save(show_errors=False)
+        if is_dirty:
+            if not validation_issues(vals):
+                save(show_errors=False)
+            else:
+                st.session_state.nav_err = f"Cannot navigate to Next Unreviewed: Item #{row_id} has unsaved invalid changes. Please resolve validation requirements or revert changes before moving."
+                st.rerun()
         updated = get_data()
         pending = updated.index[updated.review_status.astype(str).str.strip().eq("")].tolist()
         candidates = [i for i in pending if i > idx] or [i for i in pending if i <= idx]
@@ -1274,7 +1653,7 @@ with foot_col2:
         st.download_button(
             "📥 Download Annotated CSV",
             OUT.read_bytes(),
-            "annotated_output.csv",
+            download_annotated_name,
             "text/csv",
             use_container_width=True
         )
