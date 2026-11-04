@@ -11,13 +11,17 @@ from data_manager import (
     compute_dataset_key,
     get_dataset_storage_path,
     merge_saved_annotations,
+    save_dataset_record,
     validation_issues,
     COLS,
     SUPPORTED_ENCODINGS,
 )
 from ml.engine import MLEngine
+from ml.model_config import MLBackend, DEFAULT_SENTIMENT_CHECKPOINT, DEFAULT_TEXT_TYPE_CHECKPOINT
 
-ml_engine = MLEngine()
+if "ml_engine" not in st.session_state:
+    st.session_state.ml_engine = MLEngine()
+ml_engine = st.session_state.ml_engine
 
 ROOT = Path(__file__).parent
 DATA = ROOT / "sample_data.csv"
@@ -931,6 +935,39 @@ with st.sidebar:
         help="Display advisory model suggestions, confidence scores, and provenance in the workspace."
     )
 
+    if enable_ml_suggestions:
+        backend_choice = st.radio(
+            "Model Backend",
+            ["Baseline (Rules & TF-IDF)", "Multilingual Transformer (XLM-R)"],
+            index=0 if ml_engine.active_backend == MLBackend.BASELINE else 1,
+            key="ml_backend_selector_radio",
+            help="Switch between lightweight heuristic models and deep multilingual transformer checkpoints."
+        )
+        target_backend = MLBackend.BASELINE if "Baseline" in backend_choice else MLBackend.TRANSFORMER
+        if ml_engine.active_backend != target_backend:
+            ml_engine.set_backend(target_backend)
+
+        backend_info = ml_engine.get_backend_info()
+
+        if target_backend == MLBackend.TRANSFORMER:
+            with st.expander("Transformer Details & Status", expanded=False):
+                st.caption(f"**Device:** `{backend_info['device']}`")
+                st.caption(f"**Sentiment Checkpoint:** `{backend_info['sentiment_checkpoint']}`")
+                st.caption(f"**Text-Type Checkpoint:** `{backend_info['text_type_checkpoint']}`")
+
+                if not backend_info["torch_available"] or not backend_info["transformers_available"]:
+                    st.warning("⚠️ `torch` / `transformers` not installed. Gracefully using baseline fallback.")
+                else:
+                    is_cached = backend_info["sentiment_cached"] and backend_info["text_type_cached"]
+                    if is_cached:
+                        st.success("✅ Models loaded in memory cache")
+                    else:
+                        st.info("ℹ️ Models load on-demand. Click below to pre-warm cache.")
+                        if st.button("Pre-warm Models", key="btn_prewarm_models"):
+                            with st.spinner("Loading transformer models into cache..."):
+                                ml_engine.predict_all("Warmup sentence")
+                                st.rerun()
+
 # Compute export filenames
 safe_dataset_stem = Path(active_dataset_name).stem.replace(" ", "_")
 download_annotated_name = "annotated_output.csv" if active_dataset_key == "default_sample" else f"annotated_{safe_dataset_stem}.csv"
@@ -1298,12 +1335,13 @@ with selector_col1:
             issues = validation_issues(curr_vals)
             if not issues:
                 current = get_data()
-                mask = current["id"].astype(str) == str(row_id)
-                for col, value in curr_vals.items():
-                    current.loc[mask, col] = value
-                current.to_csv(OUT, index=False, quoting=csv.QUOTE_MINIMAL, encoding="utf-8-sig")
-                st.session_state.idx = chosen_idx
-                st.rerun()
+                save_ok = save_dataset_record(storage_path=OUT, current_df=current, row_id=row_id, vals=curr_vals)
+                if save_ok:
+                    st.session_state.idx = chosen_idx
+                    st.rerun()
+                else:
+                    st.session_state.nav_err = f"Failed to auto-save item #{row_id} to {OUT.name} before jumping."
+                    st.rerun()
             else:
                 st.session_state.nav_err = f"Cannot jump to sentence: Item #{row_id} has unsaved invalid changes. Please resolve validation requirements or revert your edits before jumping."
                 st.rerun()
@@ -1394,17 +1432,31 @@ with right_col:
         has_uncertain = any(p.is_uncertain for p in preds.values())
 
         with st.container(border=True):
-            st.markdown("""
+            backend_label = "Transformer (XLM-R)" if ml_engine.active_backend == MLBackend.TRANSFORMER else "Baseline Heuristics"
+            backend_sub = "Multilingual transformer & zero-shot intent predictions." if ml_engine.active_backend == MLBackend.TRANSFORMER else "Statistical & rule-based suggestions."
+
+            st.markdown(f"""
             <div class="ml-card-header">
                 <div class="ml-card-title">
                     <span>✨</span> Advisory ML Suggestions
                 </div>
-                <div class="ml-advisory-badge">Advisory • Non-Committing</div>
+                <div style="display: flex; gap: 0.4rem; align-items: center;">
+                    <span class="status-pill-clean" style="font-size: 0.68rem;">{backend_label}</span>
+                    <div class="ml-advisory-badge">Advisory • Non-Committing</div>
+                </div>
             </div>
             <div style="font-size: 0.76rem; color: #94a3b8; margin-bottom: 0.65rem;">
-                Statistical & rule-based suggestions. Clicking populates the form without saving to disk.
+                {backend_sub} Clicking populates the form without saving to disk.
             </div>
             """, unsafe_allow_html=True)
+
+            # Helper for displaying honest confidence and backend badges
+            def get_pred_badges(p, conf_cls):
+                c_lbl = "Heuristic" if p.confidence_type == "heuristic" else ("Calibrated" if p.confidence_type == "calibrated_probability" else "Model Prob")
+                fb = '<span class="ml-badge-method" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.3);">Fallback</span>' if p.actual_backend == "fallback_baseline" else ""
+                return f"""{fb}
+                        <span class="ml-badge-conf {conf_cls}" title="Confidence type: {p.confidence_type}">{int(p.confidence * 100)}% ({c_lbl})</span>
+                        <span class="ml-badge-method">{p.method}</span>"""
 
             # Language Row
             pred_lang = preds["language"]
@@ -1418,8 +1470,7 @@ with right_col:
                         <span class="ml-suggestion-val">{pred_lang.label}</span>
                     </div>
                     <div class="ml-badges">
-                        <span class="ml-badge-conf {conf_class_lang}">{int(pred_lang.confidence * 100)}%</span>
-                        <span class="ml-badge-method">{pred_lang.method}</span>
+                        {get_pred_badges(pred_lang, conf_class_lang)}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1441,8 +1492,7 @@ with right_col:
                         <span class="ml-suggestion-val">{pred_sent.label}</span>
                     </div>
                     <div class="ml-badges">
-                        <span class="ml-badge-conf {conf_class_sent}">{int(pred_sent.confidence * 100)}%</span>
-                        <span class="ml-badge-method">{pred_sent.method}</span>
+                        {get_pred_badges(pred_sent, conf_class_sent)}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1464,8 +1514,7 @@ with right_col:
                         <span class="ml-suggestion-val">{pred_tt.label}</span>
                     </div>
                     <div class="ml-badges">
-                        <span class="ml-badge-conf {conf_class_tt}">{int(pred_tt.confidence * 100)}%</span>
-                        <span class="ml-badge-method">{pred_tt.method}</span>
+                        {get_pred_badges(pred_tt, conf_class_tt)}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1549,12 +1598,13 @@ def save(show_errors=True):
                 st.markdown(f"- {issue}")
         return False
     current = get_data()
-    mask = current["id"].astype(str) == str(row_id)
-    for col, value in vals.items():
-        current.loc[mask, col] = value
-    current.to_csv(OUT, index=False, quoting=csv.QUOTE_MINIMAL, encoding="utf-8-sig")
-    st.session_state.msg = f"Saved annotation for item {row_id}."
-    return True
+    save_ok = save_dataset_record(storage_path=OUT, current_df=current, row_id=row_id, vals=vals)
+    if save_ok:
+        st.session_state.msg = f"Saved annotation for item {row_id} to {OUT.name}."
+        return True
+    else:
+        st.error(f"Failed to write annotation to storage path: {OUT}. Please verify filesystem permissions.")
+        return False
 
 # Display any banner messages from previous action
 if "msg" in st.session_state:

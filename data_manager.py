@@ -112,6 +112,32 @@ def detect_text_column(df: pd.DataFrame) -> Optional[str]:
     return best_col if best_col is not None else col_names[0]
 
 
+def generate_deterministic_record_ids(texts: List[str], dataset_key: str = "") -> List[str]:
+    """
+    Generates deterministic, dataset-aware, occurrence-safe record IDs.
+
+    Guarantees:
+    - Content Determinism: Identifiers are derived from SHA-256 hash of text content.
+    - Duplicate Text Preservation: An occurrence counter (_1, _2...) ensures identical
+      sentences appearing multiple times receive distinct, collision-free IDs.
+    - Dataset Isolation: Prefixed with dataset_key to prevent collisions across datasets.
+    - Rerun Stability: Identical datasets produce identical IDs across runs without
+      depending on volatile row position shifting.
+    """
+    seen_counts: Dict[str, int] = {}
+    new_ids = []
+    prefix = f"{dataset_key}_" if dataset_key else "rec_"
+
+    for text in texts:
+        norm_text = str(text).strip()
+        h = hashlib.sha256(norm_text.encode("utf-8")).hexdigest()[:10]
+        seen_counts[h] = seen_counts.get(h, 0) + 1
+        occ = seen_counts[h]
+        new_ids.append(f"{prefix}{h}_{occ}")
+
+    return new_ids
+
+
 def stabilize_dataset(
     df: pd.DataFrame, text_column: str, dataset_key: str
 ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
@@ -185,10 +211,10 @@ def stabilize_dataset(
         if has_id and "original_id" not in clean_df.columns:
             clean_df["original_id"] = clean_df["id"]
         
-        # Generate stable, clean sequential IDs: "1", "2", ...
-        clean_df["id"] = [str(i + 1) for i in range(len(clean_df))]
+        # Generate deterministic, dataset-aware, occurrence-safe record IDs
+        clean_df["id"] = generate_deterministic_record_ids(clean_df["text"].tolist(), dataset_key)
         info["id_generated"] = True
-        info["id_reason"] = id_reason
+        info["id_reason"] = f"{id_reason} (generated deterministic content-occurrence IDs)"
 
     # Ensure 'id' is the first column for clean UI layout
     cols_order = ["id"] + [c for c in clean_df.columns if c != "id"]
@@ -273,9 +299,13 @@ def save_dataset_record(
 ) -> bool:
     """
     Updates the record in current_df and persists the full dataset to storage_path with utf-8-sig encoding.
+    Ensures isolated, dataset-specific persistence and preserves all original columns.
     """
     try:
         mask = current_df["id"].astype(str) == str(row_id)
+        if not mask.any():
+            return False
+
         for col, value in vals.items():
             if col in current_df.columns:
                 current_df.loc[mask, col] = str(value)

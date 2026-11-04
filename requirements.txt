@@ -3,3 +3,8 @@ pandas>=2.0
 scikit-learn>=1.3.0
 joblib>=1.3.0
 pytest>=8.0
+
+# Optional Deep Learning / Transformer Backend Dependencies
+# Install when using Multilingual Transformer backends:
+# torch>=2.0
+# transformers>=4.38

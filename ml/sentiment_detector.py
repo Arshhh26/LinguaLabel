@@ -202,11 +202,13 @@ class SentimentDetector(BasePredictor):
                 confidence=0.0,
                 method="Fallback",
                 is_uncertain=True,
-                metadata={"reason": "Empty text"}
+                confidence_type="heuristic",
+                metadata={"actual_backend": "baseline", "reason": "Empty text"}
             )
 
         # 1. Lexicon evaluation with negation parsing
         lex_label, lex_conf, lex_meta = self._eval_lexicon_polarity(clean_text)
+        lex_meta["actual_backend"] = "baseline"
 
         # If strong lexicon signal (multiple hits or clear polarity)
         if (lex_meta["pos_count"] > 0 or lex_meta["neg_count"] > 0) and lex_conf >= 0.70:
@@ -215,6 +217,7 @@ class SentimentDetector(BasePredictor):
                 confidence=lex_conf,
                 method="Lexicon Rules",
                 is_uncertain=False,
+                confidence_type="heuristic",
                 metadata=lex_meta
             )
 
@@ -232,10 +235,12 @@ class SentimentDetector(BasePredictor):
                     final_label = lex_label
                     final_conf = max(lex_conf, stat_conf)
                     method = "Lexicon + N-Gram"
+                    conf_type = "heuristic"
                 else:
                     final_label = stat_label
                     final_conf = stat_conf
                     method = "TF-IDF + Linear"
+                    conf_type = "model_probability"
 
                 is_uncertain = final_conf < self.uncertainty_threshold
                 return PredictionResult(
@@ -243,7 +248,8 @@ class SentimentDetector(BasePredictor):
                     confidence=final_conf,
                     method=method,
                     is_uncertain=is_uncertain,
-                    metadata={"classes": classes, "probabilities": [round(float(p), 4) for p in probs], **lex_meta}
+                    confidence_type=conf_type,
+                    metadata={"actual_backend": "baseline", "classes": classes, "probabilities": [round(float(p), 4) for p in probs], **lex_meta}
                 )
             except Exception:
                 pass
@@ -255,5 +261,6 @@ class SentimentDetector(BasePredictor):
             confidence=lex_conf,
             method="Lexicon Rules",
             is_uncertain=is_uncertain,
+            confidence_type="heuristic",
             metadata=lex_meta
         )

@@ -178,11 +178,13 @@ class TextTypeDetector(BasePredictor):
                 confidence=0.0,
                 method="Fallback",
                 is_uncertain=True,
-                metadata={"reason": "Empty text"}
+                confidence_type="heuristic",
+                metadata={"actual_backend": "baseline", "reason": "Empty text"}
             )
 
         # 1. Syntactic rules
         syn_label, syn_conf, syn_meta = self._eval_syntax_rules(clean_text)
+        syn_meta["actual_backend"] = "baseline"
 
         # High confidence syntactic matches (e.g. ? or explicit request/greeting keywords)
         if syn_label and syn_conf >= 0.85:
@@ -191,6 +193,7 @@ class TextTypeDetector(BasePredictor):
                 confidence=syn_conf,
                 method="Syntactic Matcher",
                 is_uncertain=False,
+                confidence_type="heuristic",
                 metadata=syn_meta
             )
 
@@ -207,14 +210,17 @@ class TextTypeDetector(BasePredictor):
                     final_label = syn_label
                     final_conf = max(syn_conf, stat_conf)
                     method = "Syntax + Intent Classifier"
+                    conf_type = "heuristic"
                 elif syn_label and syn_conf >= 0.75:
                     final_label = syn_label
                     final_conf = syn_conf
                     method = "Syntactic Matcher"
+                    conf_type = "heuristic"
                 else:
                     final_label = stat_label
                     final_conf = stat_conf
                     method = "Intent Classifier"
+                    conf_type = "model_probability"
 
                 is_uncertain = final_conf < self.uncertainty_threshold
                 return PredictionResult(
@@ -222,7 +228,8 @@ class TextTypeDetector(BasePredictor):
                     confidence=final_conf,
                     method=method,
                     is_uncertain=is_uncertain,
-                    metadata={"classes": classes, "probabilities": [round(float(p), 4) for p in probs], **syn_meta}
+                    confidence_type=conf_type,
+                    metadata={"actual_backend": "baseline", "classes": classes, "probabilities": [round(float(p), 4) for p in probs], **syn_meta}
                 )
             except Exception:
                 pass
@@ -234,6 +241,7 @@ class TextTypeDetector(BasePredictor):
                 confidence=syn_conf,
                 method="Syntactic Matcher",
                 is_uncertain=is_uncertain,
+                confidence_type="heuristic",
                 metadata=syn_meta
             )
 
@@ -242,5 +250,6 @@ class TextTypeDetector(BasePredictor):
             confidence=0.45,
             method="Syntactic Matcher",
             is_uncertain=True,
+            confidence_type="heuristic",
             metadata=syn_meta
         )

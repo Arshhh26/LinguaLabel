@@ -111,7 +111,9 @@ class TestUploadAndStableIDs(unittest.TestCase):
         no_id_df = pd.DataFrame({"sentence": ["First", "Second", "Third"]})
         res_no_id, info_no_id = stabilize_dataset(no_id_df, text_column="sentence", dataset_key="no_id")
         self.assertTrue(info_no_id["id_generated"])
-        self.assertEqual(list(res_no_id["id"]), ["1", "2", "3"])
+        self.assertEqual(len(res_no_id["id"]), 3)
+        self.assertEqual(len(set(res_no_id["id"])), 3)
+        self.assertTrue(all(x.startswith("no_id_") for x in res_no_id["id"]))
 
         # Duplicate IDs
         dup_id_df = pd.DataFrame({
@@ -120,7 +122,9 @@ class TestUploadAndStableIDs(unittest.TestCase):
         })
         res_dup, info_dup = stabilize_dataset(dup_id_df, text_column="sentence", dataset_key="dup_id")
         self.assertTrue(info_dup["id_generated"])
-        self.assertEqual(list(res_dup["id"]), ["1", "2", "3"])
+        self.assertEqual(len(res_dup["id"]), 3)
+        self.assertEqual(len(set(res_dup["id"])), 3)
+        self.assertTrue(all(x.startswith("dup_id_") for x in res_dup["id"]))
         # Preserved original ID
         self.assertIn("original_id", res_dup.columns)
         self.assertEqual(list(res_dup["original_id"]), ["1", "1", "2"])

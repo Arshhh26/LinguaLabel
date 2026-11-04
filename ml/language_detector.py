@@ -142,11 +142,13 @@ class LanguageDetector(BasePredictor):
                 confidence=0.0,
                 method="Fallback",
                 is_uncertain=True,
-                metadata={"reason": "Empty text"}
+                confidence_type="heuristic",
+                metadata={"actual_backend": "baseline", "reason": "Empty text"}
             )
 
         # 1. First run deterministic script heuristic
         script_label, script_conf, script_meta = self._eval_script_heuristic(clean_text)
+        script_meta["actual_backend"] = "baseline"
 
         # If Devanagari script is clear, return Script Heuristic with high confidence
         if script_label == "Hindi" and script_conf >= 0.80:
@@ -155,6 +157,7 @@ class LanguageDetector(BasePredictor):
                 confidence=script_conf,
                 method="Script Heuristic",
                 is_uncertain=False,
+                confidence_type="heuristic",
                 metadata=script_meta
             )
 
@@ -173,14 +176,17 @@ class LanguageDetector(BasePredictor):
                     chosen_label = "Hindi"
                     chosen_conf = best_conf
                     method = "N-Gram Classifier (Transliterated)"
+                    conf_type = "model_probability"
                 elif script_label == "English" and best_label == "English":
                     chosen_label = "English"
                     chosen_conf = max(script_conf, best_conf)
                     method = "Script Heuristic"
+                    conf_type = "heuristic"
                 else:
                     chosen_label = best_label
                     chosen_conf = best_conf
                     method = "N-Gram Classifier"
+                    conf_type = "model_probability"
 
                 is_uncertain = chosen_conf < self.uncertainty_threshold
                 return PredictionResult(
@@ -188,7 +194,8 @@ class LanguageDetector(BasePredictor):
                     confidence=chosen_conf,
                     method=method,
                     is_uncertain=is_uncertain,
-                    metadata={"classes": classes, "probabilities": [round(float(p), 4) for p in probs], **script_meta}
+                    confidence_type=conf_type,
+                    metadata={"actual_backend": "baseline", "classes": classes, "probabilities": [round(float(p), 4) for p in probs], **script_meta}
                 )
             except Exception:
                 pass
@@ -201,6 +208,7 @@ class LanguageDetector(BasePredictor):
                 confidence=script_conf,
                 method="Script Heuristic",
                 is_uncertain=is_uncertain,
+                confidence_type="heuristic",
                 metadata=script_meta
             )
 
@@ -209,5 +217,6 @@ class LanguageDetector(BasePredictor):
             confidence=0.40,
             method="Script Heuristic",
             is_uncertain=True,
+            confidence_type="heuristic",
             metadata=script_meta
         )

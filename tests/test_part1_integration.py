@@ -110,17 +110,19 @@ class TestPart1Integration(unittest.TestCase):
         # Stabilize
         stable_df, info = stabilize_dataset(parsed_df, text_column=detected_col, dataset_key=dataset_key)
         self.assertTrue(info["id_generated"])
-        self.assertEqual(list(stable_df["id"]), ["1", "2"])
+        self.assertEqual(len(stable_df["id"]), 2)
+        self.assertTrue(all(x.startswith(f"{dataset_key}_") for x in stable_df["id"]))
         # Original columns preserved
         self.assertIn("channel", stable_df.columns)
         self.assertIn("timestamp", stable_df.columns)
         self.assertIn("text", stable_df.columns)
 
         # Save annotation for custom item 1
+        item_1_id = stable_df.iloc[0]["id"]
         save_success = save_dataset_record(
             storage_path=storage_path,
             current_df=stable_df,
-            row_id="1",
+            row_id=item_1_id,
             vals={
                 "language": "English",
                 "sentiment": "Neutral",
