@@ -56,8 +56,12 @@ class LanguageDetector(BasePredictor):
             ("कल हम सभी एक साथ पिकनिक पर जाने वाले हैं।", "Hindi"),
             ("कृपया खिड़की बंद कर दीजिए, बहुत ठंड है।", "Hindi"),
             ("इस समस्या का कोई आसान समाधान नहीं दिख रहा है।", "Hindi"),
-            ("kya aap meri madad kar sakte hain?", "Hindi"),
-            ("aaj ka din bahut accha tha", "Hindi"),
+            ("kya aap meri madad kar sakte hain?", "Hinglish"),
+            ("aaj ka din bahut accha tha", "Hinglish"),
+            ("Kal ka plan kya hai?", "Hinglish"),
+            ("Yeh product bilkul bekar hai", "Hinglish"),
+            ("Ye phone thik nahi chal raha hai", "Hinglish"),
+            ("This phone is accha but costly", "Hinglish"),
             ("Bonjour tout le monde, comment allez-vous?", "Other"),
             ("Hola amigo, como estas hoy?", "Other"),
             ("Guten Tag, wie geht es Ihnen?", "Other"),
@@ -115,14 +119,35 @@ class LanguageDetector(BasePredictor):
         dev_ratio = devanagari_count / total_alpha
         latin_ratio = latin_count / total_alpha
 
+        # Mixed Devanagari and Latin script (Code-mixed Hindi-English / Hinglish)
+        if devanagari_count >= 1 and latin_count >= 1:
+            conf = 0.88
+            return "Hinglish", conf, meta
+
         # Devanagari script presence is a strong, deterministic indicator of Hindi
         if dev_ratio >= 0.50:
             conf = min(0.99, 0.75 + (dev_ratio * 0.24))
             return "Hindi", conf, meta
 
-        # Dominant Latin script: can be English or transliterated Hindi / Other
+        # Dominant Latin script: can be English or transliterated Hindi (Hinglish) / Other
         if latin_ratio >= 0.75:
-            # If we don't have statistical model, default to English with moderate confidence
+            # Check for Romanized Hindi keywords in Latin script
+            clean_lower = text.lower()
+            hinglish_tokens = {
+                "kya", "hai", "hain", "nahi", "nahin", "accha", "achha", "bahut", "ka", "ki", "ke",
+                "tha", "thi", "the", "hoga", "hogi", "bhai", "yaar", "mein", "par", "kar",
+                "raha", "rahi", "rahe", "meri", "mera", "mere", "madad", "sakte", "sakta",
+                "plan", "kal", "aaj", "yeh", "ye", "woh", "kaise", "kaisa", "karo", "kijiye",
+                "batao", "samajh", "chahiye", "kuch", "sab", "apna", "apni", "apne"
+            }
+            words = set(re.findall(r"\b[a-zA-Z]+\b", clean_lower))
+            matches = words.intersection(hinglish_tokens)
+            if len(matches) >= 2 or (len(matches) >= 1 and len(words) <= 4 and any(w in matches for w in ["kya", "hai", "nahi", "accha", "bahut", "kal"])):
+                conf = min(0.92, 0.72 + (len(matches) * 0.06))
+                meta["hinglish_matches"] = list(matches)
+                return "Hinglish", conf, meta
+
+            # Default English for Latin script without Hinglish markers
             conf = min(0.95, 0.70 + (latin_ratio * 0.25))
             return "English", conf, meta
 
@@ -156,6 +181,17 @@ class LanguageDetector(BasePredictor):
                 label="Hindi",
                 confidence=script_conf,
                 method="Script Heuristic",
+                is_uncertain=False,
+                confidence_type="heuristic",
+                metadata=script_meta
+            )
+
+        # If Hinglish is detected via mixed-script or Romanized Hindi keywords
+        if script_label == "Hinglish" and script_conf >= 0.70:
+            return PredictionResult(
+                label="Hinglish",
+                confidence=script_conf,
+                method="Code-Mixed / Transliteration Heuristic",
                 is_uncertain=False,
                 confidence_type="heuristic",
                 metadata=script_meta

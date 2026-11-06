@@ -109,11 +109,27 @@ def evaluate_task(
 
     y_pred = [p.label for p in predictions]
     acc, macro_p, macro_r, macro_f1, per_class, cm = compute_metrics(y_true, y_pred)
+    weighted_f1 = sum(per_class[lbl]["f1"] * per_class[lbl]["support"] for lbl in per_class) / len(y_true) if y_true else 0.0
 
     actual_backends = [p.actual_backend for p in predictions]
     fallback_count = sum(1 for b in actual_backends if b == "fallback_baseline")
     is_fallback = (fallback_count == len(predictions)) if predictions else False
     has_partial_fallback = (fallback_count > 0 and not is_fallback) if predictions else False
+
+    record_predictions = [
+        {
+            "text": txt,
+            "ground_truth": yt,
+            "predicted": p.label,
+            "confidence": round(float(p.confidence), 4),
+            "confidence_type": getattr(p, "confidence_type", "heuristic"),
+            "actual_backend": getattr(p, "actual_backend", "baseline"),
+            "is_uncertain": getattr(p, "is_uncertain", False),
+            "is_correct": bool(yt == p.label),
+            "metadata": getattr(p, "metadata", {}),
+        }
+        for txt, yt, p in zip(texts, y_true, predictions)
+    ]
 
     # Per-language breakdown
     by_lang = {}
@@ -137,6 +153,7 @@ def evaluate_task(
         "macro_precision": round(macro_p, 4),
         "macro_recall": round(macro_r, 4),
         "macro_f1": round(macro_f1, 4),
+        "weighted_f1": round(weighted_f1, 4),
         "per_class": per_class,
         "confusion_matrix": cm,
         "by_language": by_lang,
@@ -146,6 +163,7 @@ def evaluate_task(
         "fallback_count": fallback_count,
         "has_partial_fallback": has_partial_fallback,
         "actual_backend": "fallback_baseline" if is_fallback else ("mixed" if has_partial_fallback else (actual_backends[0] if actual_backends else "unknown")),
+        "predictions": record_predictions,
     }
 
 

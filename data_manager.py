@@ -76,6 +76,73 @@ def load_csv_bytes(
     return None, None, f"Failed to parse CSV with supported encodings. Details: {last_error}"
 
 
+def load_excel_bytes(
+    file_bytes: bytes, filename: str = "uploaded.xlsx"
+) -> Tuple[Optional[pd.DataFrame], Optional[str], Optional[str]]:
+    """
+    Attempts to read Excel workbook bytes (.xlsx, .xls) using openpyxl.
+    Returns: (dataframe, 'excel', error_message)
+    """
+    if not file_bytes:
+        return None, None, "The uploaded Excel file is empty."
+
+    try:
+        stream = io.BytesIO(file_bytes)
+        df = pd.read_excel(stream, dtype=str)
+        if df.empty or len(df.columns) == 0:
+            return None, None, "The uploaded Excel sheet contains no rows or columns."
+        # Fill NaN with empty string
+        df = df.fillna("")
+        return df, "excel", None
+    except Exception as e:
+        return None, None, f"Failed to read Excel file: {str(e)}"
+
+
+def load_pasted_sentences(text_content: str) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
+    """
+    Parses multiple lines of text into a sentence DataFrame.
+    """
+    if not text_content or not text_content.strip():
+        return None, "Please paste one or more sentences."
+
+    raw_lines = text_content.splitlines()
+    clean_lines = [line.strip() for line in raw_lines if line.strip()]
+
+    if not clean_lines:
+        return None, "No valid non-empty sentences found in the pasted text."
+
+    df = pd.DataFrame({"text": clean_lines})
+    return df, None
+
+
+def load_single_sentence(sentence: str) -> Tuple[Optional[pd.DataFrame], Optional[str]]:
+    """
+    Packages a single manual sentence into a standardized single-row DataFrame.
+    """
+    clean = str(sentence).strip()
+    if not clean:
+        return None, "Please enter a sentence to analyse."
+
+    df = pd.DataFrame([{"text": clean}])
+    return df, None
+
+
+def export_excel_bytes(df: pd.DataFrame) -> Optional[bytes]:
+    """
+    Exports a DataFrame into an in-memory Excel workbook (.xlsx) as bytes.
+    """
+    if df is None or df.empty:
+        return None
+
+    try:
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="LinguaLabel Annotations")
+        return buffer.getvalue()
+    except Exception:
+        return None
+
+
 def detect_text_column(df: pd.DataFrame) -> Optional[str]:
     """
     Detects the most probable column representing sentence text.

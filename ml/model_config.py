@@ -25,7 +25,7 @@ TEXT_TYPE_LABELS = [
     "Other",
     "Uncertain",
 ]
-LANGUAGE_LABELS = ["English", "Hindi", "Other", "Uncertain"]
+LANGUAGE_LABELS = ["English", "Hindi", "Hinglish", "Other", "Uncertain"]
 
 # Extended text-type categories for transformer intent modeling
 EXTENDED_TEXT_TYPE_CATEGORIES = [

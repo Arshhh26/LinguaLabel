@@ -4,4 +4,9 @@ __pycache__/
 .streamlit/secrets.toml
 .env
 annotated_output.csv
+saved_sessions/
+evaluation_datasets/
+benchmark_history/
+active_learning_feedback/
+active_learning_exports/
 app_backup*.py

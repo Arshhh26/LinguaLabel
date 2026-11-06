@@ -35,22 +35,26 @@ class MLEngine:
 
     def __init__(
         self,
-        uncertainty_threshold: float = 0.60,
+        uncertainty_threshold: Union[float, MLEngineConfig] = 0.60,
         backend: Union[MLBackend, str] = MLBackend.BASELINE,
         config: Optional[MLEngineConfig] = None,
         device: str = "auto",
     ):
-        self.uncertainty_threshold = uncertainty_threshold
+        if isinstance(uncertainty_threshold, MLEngineConfig):
+            config = uncertainty_threshold
+            uncertainty_threshold = float(config.uncertainty_threshold)
+
+        self.uncertainty_threshold = float(uncertainty_threshold)
         if isinstance(backend, str):
             backend = MLBackend(backend.lower())
 
         self.config = config or MLEngineConfig(
             active_backend=backend,
-            uncertainty_threshold=uncertainty_threshold,
+            uncertainty_threshold=self.uncertainty_threshold,
             device=device,
         )
         self.config.active_backend = backend
-        self.config.uncertainty_threshold = uncertainty_threshold
+        self.config.uncertainty_threshold = self.uncertainty_threshold
 
         self.registry = ModelRegistry(self.config)
 
