@@ -38,6 +38,7 @@ from db.analytics import (
     get_visitor_analytics,
     verify_admin_key,
 )
+from ui_training import render_training_center
 
 
 def render_owner_access_gate():
@@ -81,7 +82,7 @@ def render_owner_access_gate():
         st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
         c_btn1, c_btn2 = st.columns([2, 1.2])
         with c_btn1:
-            if st.button("Unlock Dashboard →", type="primary", use_container_width=True):
+            if st.button("Unlock Dashboard →", type="primary", width="stretch"):
                 if not entered_key:
                     st.error("Please enter the Owner Secret Key.")
                 elif verify_admin_key(entered_key):
@@ -92,8 +93,8 @@ def render_owner_access_gate():
                     st.error("Invalid secret key. Access denied.")
 
         with c_btn2:
-            if st.button("← Back to Website", use_container_width=True):
-                st.session_state["main_nav_radio"] = "Home"
+            if st.button("← Back to Website", width="stretch"):
+                st.session_state["_pending_navigation"] = "Home"
                 if "admin" in st.query_params:
                     del st.query_params["admin"]
                 if "owner" in st.query_params:
@@ -111,7 +112,7 @@ def render_owner_access_gate():
         """, unsafe_allow_html=True)
 
 
-def render_admin_dashboard():
+def render_admin_dashboard(root_dir: Optional[Path] = None, ml_engine: Optional[Any] = None):
     """
     Renders the full Private Website Analytics & Owner Dashboard.
     """
@@ -144,9 +145,9 @@ def render_admin_dashboard():
 
     with h_col2:
         st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
-        if st.button("🔒 Lock Dashboard", use_container_width=True, help="Sign out of the owner analytics session"):
+        if st.button("🔒 Lock Dashboard", width="stretch", help="Sign out of the owner analytics session"):
             st.session_state["is_owner_authenticated"] = False
-            st.session_state["main_nav_radio"] = "Home"
+            st.session_state["_pending_navigation"] = "Home"
             if "admin" in st.query_params:
                 del st.query_params["admin"]
             if "owner" in st.query_params:
@@ -179,11 +180,12 @@ def render_admin_dashboard():
     recent_events = get_recent_events_log(limit=40)
 
     # Dashboard Tabs
-    tab_visitors, tab_usage, tab_trends, tab_events = st.tabs([
+    tab_visitors, tab_usage, tab_trends, tab_events, tab_training = st.tabs([
         "👥 Visitor Analytics",
         "🚀 Feature & Usage Telemetry",
         "📈 Activity Trends (14 Days)",
         "📜 Live Event Stream",
+        "🧠 Model Training Center",
     ])
 
     # =========================================================================
@@ -339,7 +341,7 @@ def render_admin_dashboard():
             features = usage_data.get("feature_breakdown", {})
             if features:
                 f_df = pd.DataFrame(list(features.items()), columns=["Action", "Executions"])
-                st.dataframe(f_df, use_container_width=True, hide_index=True)
+                st.dataframe(f_df, width="stretch", hide_index=True)
             else:
                 st.info("No feature actions recorded yet.")
 
@@ -375,7 +377,7 @@ def render_admin_dashboard():
             st.bar_chart(chart_work_df)
 
             st.markdown("##### Daily Trend Breakdown Table")
-            st.dataframe(tr_df, use_container_width=True, hide_index=True)
+            st.dataframe(tr_df, width="stretch", hide_index=True)
         else:
             st.info("Insufficient historical activity to render trends.")
 
@@ -398,7 +400,7 @@ def render_admin_dashboard():
                     "Safe Metadata (No Text)": meta_str,
                 })
             ev_df = pd.DataFrame(event_rows)
-            st.dataframe(ev_df, use_container_width=True, hide_index=True)
+            st.dataframe(ev_df, width="stretch", hide_index=True)
         else:
             st.info("No events logged yet. Perform an action on the website to observe live telemetry.")
 
@@ -407,3 +409,10 @@ def render_admin_dashboard():
             ✓ Verified: Zero sentence text or uploaded dataset contents are stored in the telemetry database.
         </div>
         """, unsafe_allow_html=True)
+
+    # =========================================================================
+    # TAB 5: MODEL TRAINING & IMPROVEMENT CENTER
+    # =========================================================================
+    with tab_training:
+        render_training_center(root_dir=root_dir, ml_engine=ml_engine)
+

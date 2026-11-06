@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 
-COLS = ["language", "sentiment", "text_type", "review_status", "annotator_notes"]
+COLS = ["language", "sentiment", "text_type", "abuse_category", "abuse_severity", "review_status", "annotator_notes"]
 
 TEXT_CANDIDATE_NAMES = [
     "text", "sentence", "content", "utterance", "review", 
@@ -404,9 +404,15 @@ def validation_issues(values: Dict[str, Any]) -> List[str]:
         if str(values.get(column, "")).strip() == "Uncertain" and not notes:
             issues.append(f"Add an annotator note explaining the uncertain {column.replace('_', ' ')}.")
 
+    if str(values.get("abuse_category", "")).strip() == "Uncertain" and not notes:
+        issues.append("Add an annotator note explaining the uncertain abuse category.")
+
     if str(values.get("review_status", "")).strip() == "Reviewed — looks correct":
+        check_cols = ["language", "sentiment", "text_type"]
+        if "abuse_category" in values and str(values.get("abuse_category", "")).strip():
+            check_cols.append("abuse_category")
         uncertain = [
-            c.replace("_", " ") for c in ["language", "sentiment", "text_type"]
+            c.replace("_", " ") for c in check_cols
             if str(values.get(c, "")).strip() in ("Uncertain", "— Select —", "")
         ]
         if uncertain:

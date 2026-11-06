@@ -235,6 +235,11 @@ with st.sidebar:
                 nav_options.append("Owner Analytics")
             default_idx = nav_options.index("Owner Analytics")
 
+    # Apply navigation changes before the radio widget is instantiated.
+    pending_view = st.session_state.pop("_pending_navigation", None)
+    if pending_view in nav_options:
+        st.session_state["main_nav_radio"] = pending_view
+
     view = st.radio(
         "Navigation",
         nav_options,
@@ -261,9 +266,9 @@ with st.sidebar:
 
     # Discreet website owner analytics entry
     st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
-    if st.button("🔐 Owner Analytics", use_container_width=True, help="Private website analytics for the site owner"):
+    if st.button("🔐 Owner Analytics", width="stretch", help="Private website analytics for the site owner"):
         st.query_params["owner"] = "true"
-        st.session_state["main_nav_radio"] = "Owner Analytics"
+        st.session_state["_pending_navigation"] = "Owner Analytics"
         st.rerun()
 
 
@@ -307,4 +312,4 @@ elif view == "Settings":
     render_settings_page(ROOT, df, ml_engine, dataset_key, storage_path)
 
 elif view == "Owner Analytics":
-    render_admin_dashboard()
+    render_admin_dashboard(ROOT, ml_engine)

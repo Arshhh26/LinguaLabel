@@ -73,6 +73,7 @@ DISPLAY_TEXT_TYPE_OPTIONS = [
     "Sharing an opinion or statement",
     "Making a request or instruction",
     "Greeting",
+    "Complaining or reporting an issue",
     "Other",
     "Not sure",
 ]
@@ -82,6 +83,9 @@ DISPLAY_TO_INTERNAL_TEXT_TYPE: Dict[str, str] = {
     "Sharing an opinion or statement": "Statement",
     "Making a request or instruction": "Request / Instruction",
     "Greeting": "Greeting",
+    "Complaining or reporting an issue": "Complaining",
+    "Complaining": "Complaining",
+    "Complaint": "Complaining",
     "Other": "Other",
     "Not sure": "Uncertain",
     "— Select —": "— Select —",
@@ -101,7 +105,99 @@ INTERNAL_TO_DISPLAY_TEXT_TYPE: Dict[str, str] = {
     "Statement": "Sharing an opinion or statement",
     "Request / Instruction": "Making a request or instruction",
     "Greeting": "Greeting",
+    "Complaining": "Complaining or reporting an issue",
+    "Complaint": "Complaining or reporting an issue",
     "Other": "Other",
+    "Uncertain": "Not sure",
+    "— Select —": "— Select —",
+    "": "— Select —",
+}
+
+# =============================================================================
+# ABUSIVE LANGUAGE & PROFANITY MAPPINGS (Part 11.2)
+# =============================================================================
+
+DISPLAY_ABUSE_OPTIONS = [
+    "Not abusive",
+    "Profanity / Vulgarity",
+    "Severe Personal Insult",
+    "Sexualized Abuse",
+    "Harassment",
+    "Threat",
+    "Not sure",
+]
+
+DISPLAY_TO_INTERNAL_ABUSE: Dict[str, str] = {
+    "Not abusive": "Not abusive",
+    "Profanity / Vulgarity": "Profanity / Vulgarity",
+    "Severe Personal Insult": "Severe Personal Insult",
+    "Sexualized Abuse": "Sexualized Abuse",
+    "Harassment": "Harassment",
+    "Threat": "Threat",
+    "Not sure": "Uncertain",
+    "— Select —": "— Select —",
+    "": "",
+}
+
+INTERNAL_TO_DISPLAY_ABUSE: Dict[str, str] = {
+    "Not abusive": "Not abusive",
+    "Profanity / Vulgarity": "Profanity / Vulgarity",
+    "Severe Personal Insult": "Severe Personal Insult",
+    "Sexualized Abuse": "Sexualized Abuse",
+    "Harassment": "Harassment",
+    "Threat": "Threat",
+    "Uncertain": "Not sure",
+    "— Select —": "— Select —",
+    "": "— Select —",
+}
+
+DISPLAY_SEVERITY_OPTIONS = [
+    "None",
+    "Mild",
+    "Moderate",
+    "Severe",
+]
+
+DISPLAY_TO_INTERNAL_SEVERITY: Dict[str, str] = {
+    "None": "None",
+    "Mild": "Mild",
+    "Moderate": "Moderate",
+    "Severe": "Severe",
+    "— Select —": "— Select —",
+    "": "",
+}
+
+INTERNAL_TO_DISPLAY_SEVERITY: Dict[str, str] = {
+    "None": "None",
+    "Mild": "Mild",
+    "Moderate": "Moderate",
+    "Severe": "Severe",
+    "— Select —": "— Select —",
+    "": "— Select —",
+}
+
+# Complaining Detection mappings (Part 11.4)
+DISPLAY_COMPLAINT_OPTIONS = [
+    "Complaining",
+    "Not complaining",
+    "Not sure",
+]
+
+DISPLAY_TO_INTERNAL_COMPLAINT: Dict[str, str] = {
+    "Complaining": "Complaining",
+    "Not complaining": "Not complaining",
+    "Complaining or reporting an issue": "Complaining",
+    "Complaint": "Complaining",
+    "Non-complaint": "Not complaining",
+    "Not sure": "Uncertain",
+    "— Select —": "— Select —",
+    "": "",
+}
+
+INTERNAL_TO_DISPLAY_COMPLAINT: Dict[str, str] = {
+    "Complaining": "Complaining",
+    "Not complaining": "Not complaining",
+    "Complaint": "Complaining",
     "Uncertain": "Not sure",
     "— Select —": "— Select —",
     "": "— Select —",
@@ -144,6 +240,12 @@ def to_internal_label(task: str, display_label: str) -> str:
         return DISPLAY_TO_INTERNAL_SENTIMENT.get(dl, dl)
     elif task == "text_type":
         return DISPLAY_TO_INTERNAL_TEXT_TYPE.get(dl, dl)
+    elif task in ("complaint", "complaining"):
+        return DISPLAY_TO_INTERNAL_COMPLAINT.get(dl, dl)
+    elif task in ("abuse", "abuse_category"):
+        return DISPLAY_TO_INTERNAL_ABUSE.get(dl, dl)
+    elif task in ("abuse_severity", "severity"):
+        return DISPLAY_TO_INTERNAL_SEVERITY.get(dl, dl)
     elif task == "review_status":
         return DISPLAY_TO_INTERNAL_REVIEW_STATUS.get(dl, dl)
     return dl
@@ -158,6 +260,12 @@ def to_display_label(task: str, internal_label: str) -> str:
         return INTERNAL_TO_DISPLAY_SENTIMENT.get(il, il if il else "— Select —")
     elif task == "text_type":
         return INTERNAL_TO_DISPLAY_TEXT_TYPE.get(il, il if il else "— Select —")
+    elif task in ("complaint", "complaining"):
+        return INTERNAL_TO_DISPLAY_COMPLAINT.get(il, il if il else "— Select —")
+    elif task in ("abuse", "abuse_category"):
+        return INTERNAL_TO_DISPLAY_ABUSE.get(il, il if il else "— Select —")
+    elif task in ("abuse_severity", "severity"):
+        return INTERNAL_TO_DISPLAY_SEVERITY.get(il, il if il else "— Select —")
     elif task == "review_status":
         return INTERNAL_TO_DISPLAY_REVIEW_STATUS.get(il, il if il else "— Select —")
     return il if il else "— Select —"
@@ -278,6 +386,8 @@ def generate_sentence_explanation(
         intent_str = "making a request or giving an instruction"
     elif tt_lbl == "Greeting":
         intent_str = "offering a greeting or conversational remark"
+    elif tt_lbl in ("Complaining", "Complaint"):
+        intent_str = "expressing a complaint or reporting an issue"
     elif tt_lbl == "Statement":
         intent_str = "stating information or sharing an opinion"
     else:
@@ -309,5 +419,11 @@ def generate_sentence_explanation(
     has_negation = bool(re.search(r"\b(don't|dont|not|never|didn't|didnt|nahi|nahin|nhi|bilkul nahi)\b", text_lower))
     if has_negation and sent_lbl == "Negative":
         explanation += " (Negation cues present)."
+
+    # Abusive language notice
+    p_abuse = preds.get("abuse")
+    if p_abuse and p_abuse.label != "Not abusive":
+        sev = p_abuse.metadata.get("severity", "Moderate") if p_abuse.metadata else "Moderate"
+        explanation += f" ⚠️ Content warning: AI detected {p_abuse.label.lower()} ({sev.lower()} severity)."
 
     return explanation

@@ -113,7 +113,7 @@ def render_my_results_page(root_dir: Path, df: pd.DataFrame, dataset_key: str):
             ), legend=None),
             tooltip=["Sentiment", "Count"]
         ).properties(height=200).configure_view(strokeOpacity=0)
-        st.altair_chart(sent_chart, use_container_width=True)
+        st.altair_chart(sent_chart, width="stretch")
 
     with chart_c2:
         st.markdown("#### Language Breakdown")
@@ -129,7 +129,7 @@ def render_my_results_page(root_dir: Path, df: pd.DataFrame, dataset_key: str):
             ), legend=None),
             tooltip=["Language", "Count"]
         ).properties(height=200).configure_view(strokeOpacity=0)
-        st.altair_chart(lang_chart, use_container_width=True)
+        st.altair_chart(lang_chart, width="stretch")
 
     st.markdown("---")
 
@@ -171,10 +171,12 @@ def render_my_results_page(root_dir: Path, df: pd.DataFrame, dataset_key: str):
             "Language": to_display_label("language", str(row.get("language", ""))),
             "Sentiment": to_display_label("sentiment", str(row.get("sentiment", ""))),
             "Sentence Type": to_display_label("text_type", str(row.get("text_type", ""))),
+            "Abuse Category": to_display_label("abuse", str(row.get("abuse_category", ""))),
+            "Severity": str(row.get("abuse_severity", "")),
             "Verification Status": status_icon,
             "Notes": str(row.get("annotator_notes", "")),
         })
 
     st.caption(f"Showing **{len(display_rows)}** matching sentence(s).")
-    st.dataframe(pd.DataFrame(display_rows), use_container_width=True)
+    st.dataframe(pd.DataFrame(display_rows), width="stretch")
 

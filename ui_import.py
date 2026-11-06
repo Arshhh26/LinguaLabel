@@ -31,34 +31,6 @@ from data_manager import (
 )
 
 
-def _save_to_user_db(
-    current_user: Optional[Dict[str, Any]],
-    target_ws_id: Optional[str],
-    ds_name: str,
-    stable_df: pd.DataFrame,
-    orig_filename: Optional[str] = None,
-    dataset_key: Optional[str] = None,
-) -> None:
-    """Helper to save imported records into the user's active workspace."""
-    if not current_user or not target_ws_id or stable_df.empty:
-        return
-    try:
-        from db.service import create_dataset_with_sentences
-        records = [dict(r) for _, r in stable_df.iterrows()]
-        created_ds, _ = create_dataset_with_sentences(
-            user_id=current_user["id"],
-            workspace_id=target_ws_id,
-            name=ds_name,
-            records=records,
-            original_filename=orig_filename,
-            dataset_key=dataset_key,
-        )
-        if created_ds:
-            st.session_state.active_dataset_id = created_ds.id
-    except Exception:
-        pass
-
-
 def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional[str], Optional[Path]]:
     """Renders the Import Sentences interface."""
     st.markdown("""
@@ -76,27 +48,6 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-    # Multi-User Workspace Selector (if user is authenticated)
-    current_user = st.session_state.get("current_user")
-    target_ws_id: Optional[str] = None
-
-    if current_user:
-        from db.service import list_workspaces
-        workspaces = list_workspaces(current_user["id"])
-        if workspaces:
-            ws_options = {w.name: w.id for w in workspaces}
-            curr_active_ws = st.session_state.get("active_workspace_id", workspaces[0].id)
-            default_ws_name = next((name for name, wid in ws_options.items() if wid == curr_active_ws), list(ws_options.keys())[0])
-
-            c_ws_lbl, c_ws_sel = st.columns([1.5, 3.5])
-            with c_ws_lbl:
-                st.markdown("<div style='margin-top: 0.5rem; font-size: 0.9rem; color: #94a3b8;'>Save into Workspace:</div>", unsafe_allow_html=True)
-            with c_ws_sel:
-                selected_ws_title = st.selectbox("Workspace", list(ws_options.keys()), index=list(ws_options.keys()).index(default_ws_name), label_visibility="collapsed")
-                target_ws_id = ws_options.get(selected_ws_title)
-                st.session_state.active_workspace_id = target_ws_id
-            st.markdown("<hr style='border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 0.75rem 0;'>", unsafe_allow_html=True)
 
     input_mode = st.radio(
         "Choose how you want to add sentences:",
@@ -163,21 +114,19 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
                 st.markdown("#### 2. Preview your data")
                 sample_preview = raw_df[[selected_col]].head(5).copy()
                 sample_preview.columns = ["Sentence Preview (First 5 Rows)"]
-                st.dataframe(sample_preview, use_container_width=True)
+                st.dataframe(sample_preview, width="stretch")
 
                 d_key = compute_dataset_key(file_bytes)
                 s_path = get_dataset_storage_path(d_key, root_dir)
 
                 st.markdown("---")
-                if st.button("🚀 Start Analysing This Dataset", type="primary", use_container_width=True):
+                if st.button("🚀 Start Analysing This Dataset", type="primary", width="stretch"):
                     with st.spinner("Preparing dataset and initializing session..."):
                         stable_df, _ = stabilize_dataset(raw_df, selected_col, d_key)
                         if s_path.exists():
                             stable_df = merge_saved_annotations(stable_df, s_path)
                         else:
                             stable_df.to_csv(s_path, index=False, encoding="utf-8-sig")
-
-                        _save_to_user_db(current_user, target_ws_id, ds_name_input or clean_ds_title, stable_df, uploaded_file.name, d_key)
 
                         # Record anonymous aggregate usage event
                         try:
@@ -196,7 +145,7 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
                         st.session_state.active_dataset_key = ds_name_input or d_key
                         st.session_state.active_storage_path = s_path
                         st.session_state.idx = 0
-                        st.session_state.main_nav_radio = "Analyse & Label"
+                        st.session_state["_pending_navigation"] = "Analyse & Label"
                         st.rerun()
 
     # =========================================================================
@@ -223,9 +172,9 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
                 st.warning(err)
             elif raw_df is not None:
                 st.info(f"Found **{len(raw_df)}** valid sentences.")
-                st.dataframe(raw_df.head(5), use_container_width=True)
+                st.dataframe(raw_df.head(5), width="stretch")
 
-                if st.button("🚀 Import and Start Analysing", type="primary", use_container_width=True):
+                if st.button("🚀 Import and Start Analysing", type="primary", width="stretch"):
                     d_key = compute_dataset_key(pasted_text.encode("utf-8"))
                     s_path = get_dataset_storage_path(d_key, root_dir)
                     stable_df, _ = stabilize_dataset(raw_df, "text", d_key)
@@ -233,8 +182,6 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
                         stable_df = merge_saved_annotations(stable_df, s_path)
                     else:
                         stable_df.to_csv(s_path, index=False, encoding="utf-8-sig")
-
-                    _save_to_user_db(current_user, target_ws_id, p_name or "Pasted Batch", stable_df, "pasted_text.txt", d_key)
 
                     try:
                         from db.analytics import record_usage_event
@@ -249,7 +196,7 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
                     st.session_state.active_dataset_key = p_name or d_key
                     st.session_state.active_storage_path = s_path
                     st.session_state.idx = 0
-                    st.session_state.main_nav_radio = "Analyse & Label"
+                    st.session_state["_pending_navigation"] = "Analyse & Label"
                     st.rerun()
 
     # =========================================================================
@@ -270,7 +217,7 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
             if err:
                 st.warning(err)
             elif raw_df is not None:
-                if st.button("🔍 Analyse This Sentence", type="primary", use_container_width=True):
+                if st.button("🔍 Analyse This Sentence", type="primary", width="stretch"):
                     d_key = compute_dataset_key(manual_sentence.encode("utf-8"))
                     s_path = get_dataset_storage_path(d_key, root_dir)
                     stable_df, _ = stabilize_dataset(raw_df, "text", d_key)
@@ -278,8 +225,6 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
                         stable_df = merge_saved_annotations(stable_df, s_path)
                     else:
                         stable_df.to_csv(s_path, index=False, encoding="utf-8-sig")
-
-                    _save_to_user_db(current_user, target_ws_id, "Single Sentence Query", stable_df, "single_sentence.txt", d_key)
 
                     try:
                         from db.analytics import record_usage_event
@@ -293,7 +238,7 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
                     st.session_state.active_dataset_key = "Single Sentence"
                     st.session_state.active_storage_path = s_path
                     st.session_state.idx = 0
-                    st.session_state.main_nav_radio = "Analyse & Label"
+                    st.session_state["_pending_navigation"] = "Analyse & Label"
                     st.rerun()
 
     # =========================================================================
@@ -308,16 +253,14 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
 
         if sample_path.exists():
             df_sample = pd.read_csv(sample_path, dtype=str)
-            st.dataframe(df_sample[["id", "text"]].head(6), use_container_width=True)
+            st.dataframe(df_sample[["id", "text"]].head(6), width="stretch")
 
-            if st.button("🚀 Load Pre-Loaded Examples", type="primary", use_container_width=True):
+            if st.button("🚀 Load Pre-Loaded Examples", type="primary", width="stretch"):
                 stable_df, _ = stabilize_dataset(df_sample, "text", "default_sample")
                 if out_path.exists():
                     stable_df = merge_saved_annotations(stable_df, out_path)
                 else:
                     stable_df.to_csv(out_path, index=False, encoding="utf-8-sig")
-
-                _save_to_user_db(current_user, target_ws_id, "Pre-Loaded 20 Examples", stable_df, "sample_data.csv", "default_sample")
 
                 try:
                     from db.analytics import record_usage_event
@@ -331,7 +274,7 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
                 st.session_state.active_dataset_key = "default_sample"
                 st.session_state.active_storage_path = out_path
                 st.session_state.idx = 0
-                st.session_state.main_nav_radio = "Analyse & Label"
+                st.session_state["_pending_navigation"] = "Analyse & Label"
                 st.rerun()
 
     return imported_df, dataset_key, storage_path

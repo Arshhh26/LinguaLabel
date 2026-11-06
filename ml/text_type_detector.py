@@ -38,6 +38,9 @@ class TextTypeDetector(BasePredictor):
         self.hi_greetings: Set[str] = set()
         self.en_requests: Set[str] = set()
         self.hi_requests: Set[str] = set()
+        self.en_complaints: List[str] = []
+        self.hi_complaints: List[str] = []
+        self.hinglish_complaints: List[str] = []
 
         self._load_keywords()
         self.classifier: Optional[Any] = None
@@ -64,6 +67,19 @@ class TextTypeDetector(BasePredictor):
             except Exception:
                 pass
 
+        # Load complaints lexicon
+        comp_path = LEXICONS_DIR / "complaint_lexicon.json"
+        if comp_path.exists():
+            try:
+                with open(comp_path, "r", encoding="utf-8") as f:
+                    cdata = json.load(f)
+                    cm = cdata.get("complaint_markers", {})
+                    self.en_complaints = cm.get("english", [])
+                    self.hinglish_complaints = cm.get("hinglish", [])
+                    self.hi_complaints = cm.get("devanagari", [])
+            except Exception:
+                pass
+
     def _init_statistical_model(self):
         if not SKLEARN_AVAILABLE:
             return
@@ -71,12 +87,25 @@ class TextTypeDetector(BasePredictor):
         seed_data = [
             ("I am feeling happy today.", "Statement"),
             ("The meeting was held in room 405.", "Statement"),
+            ("Today I am feeling sad.", "Statement"),
             ("कल हम सभी एक साथ पिकनिक पर जाने वाले हैं।", "Statement"),
             ("यह खाना बहुत स्वादिष्ट और लजीज था।", "Statement"),
             ("इस समस्या का कोई आसान समाधान नहीं दिख रहा है।", "Statement"),
             ("आज का मौसम बहुत सुहावना है।", "Statement"),
             ("The project deadline has been postponed to next week.", "Statement"),
             ("ट्रेन में बहुत भीड़ थी और यात्रा काफी कठिन रही।", "Statement"),
+
+            ("Your application keeps crashing.", "Complaining"),
+            ("I am very disappointed with your service.", "Complaining"),
+            ("The delivery was extremely late.", "Complaining"),
+            ("आज आपकी सेवा बहुत खराब है।", "Complaining"),
+            ("Yaar tumhara app baar baar crash ho raha hai.", "Complaining"),
+            ("Ye service bilkul bekar hai, paisa barbad ho gaya.", "Complaining"),
+            ("My order never arrived and support is unresponsive.", "Complaining"),
+            ("ऐप बार-बार बंद हो रहा है, बहुत खराब अनुभव।", "Complaining"),
+            ("App is not working properly, keeps freezing.", "Complaining"),
+            ("Worst customer service ever, nobody replies.", "Complaining"),
+            ("पैसे कट गए लेकिन टिकट बुक नहीं हुआ।", "Complaining"),
 
             ("Can you help me with this problem?", "Question"),
             ("Where is the nearest railway station located?", "Question"),
@@ -86,6 +115,7 @@ class TextTypeDetector(BasePredictor):
             ("How do I reset my account password?", "Question"),
             ("Why was the morning train delayed?", "Question"),
 
+            ("Please fix this problem immediately.", "Request / Instruction"),
             ("Please send the quarterly financial report by Monday.", "Request / Instruction"),
             ("कृपया समय पर अपनी रिपोर्ट जमा करें।", "Request / Instruction"),
             ("कृपया खिड़की बंद कर दीजिए, बहुत ठंड है।", "Request / Instruction"),
@@ -124,7 +154,51 @@ class TextTypeDetector(BasePredictor):
         words = re.findall(r"[\w']+|[^\s\w]", lower)
         meta = {"matched_pattern": None}
 
-        # 1. Question: Contains question mark or interrogative token
+        # 1. Request / Instruction: High priority for explicit polite directives or imperative openers
+        # e.g. "Please fix this problem immediately." -> Request / Instruction
+        if words and words[0] in ("please", "kindly", "do", "don't"):
+            meta["matched_pattern"] = f"en_request_starter_{words[0]}"
+            return "Request / Instruction", 0.92, meta
+
+        for r in self.hi_requests:
+            if clean.startswith(r) or clean.endswith(r) or f" {r} " in f" {clean} ":
+                meta["matched_pattern"] = f"hi_request_{r}"
+                return "Request / Instruction", 0.90, meta
+
+        for r in self.en_requests:
+            if re.search(r'\b' + re.escape(r) + r'\b', lower):
+                meta["matched_pattern"] = f"en_request_{r}"
+                return "Request / Instruction", 0.88, meta
+
+        # 2. Greetings: Matches greeting phrases at word boundaries
+        for g in self.en_greetings:
+            if re.search(r'\b' + re.escape(g) + r'\b', lower):
+                meta["matched_pattern"] = f"en_greeting_{g}"
+                return "Greeting", 0.92, meta
+
+        for g in self.hi_greetings:
+            if g in clean.split() or clean.startswith(g):
+                meta["matched_pattern"] = f"hi_greeting_{g}"
+                return "Greeting", 0.92, meta
+
+        # 3. Complaining: Matches service, software, product, or delivery complaints
+        # Supports English, Hindi, and Hinglish
+        for c in self.en_complaints:
+            if re.search(r'\b' + re.escape(c) + r'\b', lower) or c in lower:
+                meta["matched_pattern"] = f"en_complaint_{c}"
+                return "Complaining", 0.92, meta
+
+        for c in self.hinglish_complaints:
+            if c in lower or re.search(r'\b' + re.escape(c) + r'\b', lower):
+                meta["matched_pattern"] = f"hinglish_complaint_{c}"
+                return "Complaining", 0.92, meta
+
+        for c in self.hi_complaints:
+            if c in clean:
+                meta["matched_pattern"] = f"hi_complaint_{c}"
+                return "Complaining", 0.92, meta
+
+        # 4. Question: Contains question mark or interrogative token
         has_q_symbol = any(sym in clean for sym in self.q_symbols)
         if has_q_symbol:
             meta["matched_pattern"] = "question_symbol"
@@ -141,29 +215,8 @@ class TextTypeDetector(BasePredictor):
                 meta["matched_pattern"] = f"hi_interrogative_{hq}"
                 return "Question", 0.90, meta
 
-        # 2. Greetings: Matches greeting phrases at word boundaries
-        for g in self.en_greetings:
-            if re.search(r'\b' + re.escape(g) + r'\b', lower):
-                meta["matched_pattern"] = f"en_greeting_{g}"
-                return "Greeting", 0.92, meta
-
-        for g in self.hi_greetings:
-            if g in clean.split() or clean.startswith(g):
-                meta["matched_pattern"] = f"hi_greeting_{g}"
-                return "Greeting", 0.92, meta
-
-        # 3. Request / Instruction: Matches polite directives or imperatives
-        for r in self.en_requests:
-            if re.search(r'\b' + re.escape(r) + r'\b', lower):
-                meta["matched_pattern"] = f"en_request_{r}"
-                return "Request / Instruction", 0.88, meta
-
-        for r in self.hi_requests:
-            if r in clean.split() or clean.startswith(r) or clean.endswith(r) or f" {r} " in f" {clean} ":
-                meta["matched_pattern"] = f"hi_request_{r}"
-                return "Request / Instruction", 0.88, meta
-
-        # 4. Declarative Statement: Ends with period / purna viram or general statement
+        # 5. Declarative Statement: Ends with period / purna viram or general declarative structure
+        # e.g. "Today I am feeling sad." -> Statement (negative sentiment, but communicative intent is Statement)
         if clean.endswith(".") or clean.endswith("।") or len(words) > 3:
             meta["matched_pattern"] = "declarative_structure"
             return "Statement", 0.75, meta

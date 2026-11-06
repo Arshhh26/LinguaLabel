@@ -22,10 +22,29 @@ TEXT_TYPE_LABELS = [
     "Question",
     "Request / Instruction",
     "Greeting",
+    "Complaining",
     "Other",
     "Uncertain",
 ]
 LANGUAGE_LABELS = ["English", "Hindi", "Hinglish", "Other", "Uncertain"]
+
+# Abusive Language Detection target schemas (Part 11.2)
+ABUSE_CATEGORIES = [
+    "Not abusive",
+    "Profanity / Vulgarity",
+    "Severe Personal Insult",
+    "Sexualized Abuse",
+    "Harassment",
+    "Threat",
+    "Uncertain",
+]
+
+ABUSE_SEVERITY_LEVELS = [
+    "None",
+    "Mild",
+    "Moderate",
+    "Severe",
+]
 
 # Extended text-type categories for transformer intent modeling
 EXTENDED_TEXT_TYPE_CATEGORIES = [
@@ -42,7 +61,7 @@ EXTENDED_TO_UI_TEXT_TYPE_MAP: Dict[str, str] = {
     "Question": "Question",
     "Greeting": "Greeting",
     "Request": "Request / Instruction",
-    "Complaint": "Statement",
+    "Complaint": "Complaining",
     "Review": "Statement",
     "General": "Statement",
 }

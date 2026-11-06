@@ -1,215 +1,290 @@
-# LinguaLabel — Multilingual Text Annotation & Quality Studio
+# LinguaLabel
 
-A production-grade, human-in-the-loop annotation platform and quality review system for multilingual text (English, Hindi, and transliterated scripts). LinguaLabel pairs an intuitive, Linear/Vercel-inspired dark-mode user interface with modular machine learning inference, robust dataset ingestion, and strict quality assurance validation rules.
+> **AI-Assisted Multilingual Text Analysis, Quality Annotation & Continuous Model Training Platform**
 
----
+LinguaLabel is an open-source, human-in-the-loop annotation and text analytics platform designed specifically for multilingual, code-mixed, and transliterated customer text. It unifies high-speed heuristic and deep transformer inference with an ergonomic Streamlit annotation interface, active learning review queues, continuous model retraining, and privacy-first website telemetry.
 
-## Key Features
-
-### 1. Multi-Source Dataset Ingestion & Column Mapping
-- **Built-in Sample Dataset**: Ships with a curated 20-sentence seed dataset covering English, Devanagari Hindi, and transliterated utterances.
-- **Custom CSV Upload**: Upload any CSV dataset with automatic encoding detection (`utf-8`, `utf-8-sig`, `latin-1`, `cp1252`) and delimiter detection (comma, tab, semicolon).
-- **Interactive Column Selector**: Preview uploaded data and dynamically choose which column contains the text to annotate (auto-detects `text`, `sentence`, `content`, `utterance`, `review`).
-- **Deterministic Stable IDs**: Preserves existing `id` columns or generates deterministic content hashes to guarantee annotation stability across reruns.
-- **Storage Isolation**: Saves annotations separately per dataset source, guaranteeing that uploaded datasets never overwrite sample annotations.
-
-### 2. Human-in-the-Loop Annotation Studio
-- **Advisory ML Assistance**: Suggests labels for Language, Sentiment, and Text Type with calibrated confidence scores (e.g., `96% confidence`) and transparent provenance pills (`Script Heuristic`, `Lexicon Rules`, `N-Gram Classifier`).
-- **Non-Destructive Contract**: AI predictions are strictly advisory; they populate form controls only upon explicit user request and never commit to disk without human confirmation.
-- **Uncertainty Guardrails**: Predictions with confidence below 60% are flagged with an explicit `⚠️ Low confidence` alert and default to `Uncertain`, prompting annotators for mandatory explanatory notes.
-- **1-Click Suggestion Application**: Apply individual suggestions or use the **Accept All Suggestions** button for fast triage.
-- **Navigation Safety & Auto-Save**: Prevents data loss by checking for unsaved changes during navigation (`Previous`, `Next`, `Jump to Sentence`, `Go to Next Unreviewed`). Automatically saves valid edits and alerts the user if required fields are missing.
-
-### 3. Rigorous Quality Validation Rules
-The platform enforces four mandatory quality validation rules before marking records as reviewed:
-1. **Full Schema Completion**: All four schema fields (`language`, `sentiment`, `text_type`, `review_status`) must be selected.
-2. **Mandatory Uncertainty Notes**: Any label marked as `Uncertain` requires an explanatory annotator note.
-3. **Reviewed Status Lockout**: Marking as `Reviewed — looks correct` is blocked if any label is empty or uncertain.
-4. **Triage Rationale**: Explanatory notes are required for any triage status (`Needs second review`, `Ambiguous`, `Skip`).
-
-### 4. Modular Machine Learning Engine (`ml/`)
-- **Language Identification**: Fast Unicode script heuristic evaluating Devanagari codepoints (`U+0900..U+097F`) vs. Basic Latin (`A..Za..z`), paired with character n-gram TF-IDF for ambiguous or transliterated text.
-- **Sentiment Polarity**: Curated bilingual polarity lexicons with contextual bidirectional negation parsing (`नहीं`, `मत`, `ना` in Hindi; `not`, `never`, `no` in English) plus statistical TF-IDF classification.
-- **Text Type Classification**: Syntactic token matcher identifying questions (`?`, `क्या`, `who`, `why`), greetings (`नमस्ते`, `hello`), and requests (`कृपया`, `please`), backed by an n-gram intent classifier.
-- **Empirical Evaluation CLI**: Run `python -m ml.evaluate` to compute exact accuracy, precision, recall, macro-F1, and confusion matrices against ground truth.
-
-### 5. Multilingual Transformer Integration (Part 6)
-- **Hybrid Multi-Backend Coordinator (`MLEngine`)**: Seamlessly toggle between lightweight baseline heuristics and deep multilingual transformer models from the UI or programmatic API.
-- **Pretrained Multilingual Sentiment Checkpoint**: Integrates `cardiffnlp/twitter-xlm-roberta-base-sentiment` (MIT license, trained on ~198M multilingual tweets covering English, Hindi, and 6 additional languages). Maps predictions cleanly to `Positive`, `Negative`, `Neutral`.
-- **Zero-Shot Communicative Intent Modeling**: Integrates multilingual NLI (`MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7`, MIT license) classifying into fine-grained communicative intents (`Question`, `Complaint`, `Review`, `General`, `Greeting`, `Request`) mapped deterministically to the LinguaLabel UI schema.
-- **Memory & Process Caching (`ModelLoader`)**: Thread-safe singleton model caching with device detection (`cuda:0` / `cpu`). Avoids redundant model downloads and reloads during Streamlit reruns.
-- **Graceful Fallbacks**: Degrades automatically to baseline heuristic inference if `torch` / `transformers` or checkpoint weights are not present.
-- **Strict Human-in-the-Loop Contract**: Predictions are strictly advisory and never mutate stored annotations on disk.
-
-### 6. Quality Analytics & Data Explorer
-- **Quality Dashboard**: Real-time progress tracking, reviewed vs. pending counts, label distribution charts, and quality queue reviews.
-- **Dataset Overview & Triage Queues**: Quick-filter by `All Records`, `Pending / Unreviewed`, `Completed / Reviewed`, and `Follow-Up Queue`, combined with full-text keyword search.
-- **UTF-8 with BOM Export**: Download filtered or complete datasets encoded in `utf-8-sig` to preserve Devanagari Hindi characters cleanly in Excel, pandas, and external tools.
+LinguaLabel is built for researchers, data scientists, and content moderators analysing multilingual feedback, customer support queries, social media comments, and user-generated content.
 
 ---
 
-## Installation & Setup
+## 1. Project Overview
 
-### Requirements
-- Python 3.10 or newer (tested on Python 3.14.8)
-- Virtual environment recommended
+Modern NLP systems often struggle with code-mixed and romanized text—such as Hinglish (Hindi written in the Latin alphabet)—and complex intent categories like subtle complaints or profanity. LinguaLabel addresses these challenges by combining:
 
-### 1. Clone & Set Up Environment
+- **AI-Assisted Multi-Dimensional Tagging**: Generates real-time suggestions across five dimensions (Language, Sentiment, Intent/Text-Type, Complaining, and Abuse/Profanity with Severity).
+- **Human-in-the-Loop Sovereignty**: Machine predictions are strictly advisory; every final label requires human review, ensuring 100% human decision immutability upon export.
+- **Continuous Learning & Training Center**: Allows platform owners to upload new domain datasets, curate human annotator corrections, train custom scikit-learn models with leakage-safe stratified splitting, evaluate candidate models against baselines, and promote models to live production with instant 1-click rollback.
+- **Privacy-Conscious Architecture**: The public application is completely open and anonymous—zero logins, zero registrations, and zero user profiling. Telemetry aggregates usage counts and visits without ever storing user sentence text or dataset payloads.
+
+---
+
+## 2. Key Features
+
+- **Multi-Format Ingestion**: Ingest data via CSV upload, Excel spreadsheets (`.xlsx`, `.xls`), raw text pasting (multi-sentence batching), single-sentence queries, or pre-loaded multilingual benchmarks.
+- **Robust UTF-8 Encoding & Byte Sniffing**: Automatic detection of UTF-8, UTF-8-SIG, Latin-1, and Windows-1252 encodings, ensuring Devanagari Hindi text renders without corruption.
+- **Deterministic Record Fingerprinting**: Retains source dataset identifiers or generates reproducible MD5/SHA256 content hashes for sentence tracking across sessions.
+- **Active Learning & Smart Review Queue**: Automatic prioritization of ambiguous, low-confidence (< 60%), and model-disagreement sentences into a dedicated triage queue.
+- **Interactive Analytics & Distribution Charts**: Dynamic Altair and Plotly visualizations for language distribution, sentiment polarity, and intent breakdowns.
+- **UTF-8 with BOM Export**: 1-click download of verified datasets in CSV (`utf-8-sig`) and native Microsoft Excel (`.xlsx`) format.
+- **Private Website Owner Telemetry**: Discreet, key-gated analytics dashboard providing real-time traffic analysis, unique visitor deduplication (30-minute inactivity boundary), and feature usage metrics.
+
+---
+
+## 3. Supported Languages
+
+LinguaLabel natively supports three linguistic modalities:
+
+1. **English**: Full syntactic token matching, sentiment lexicons, and transformer coverage.
+2. **Hindi (Devanagari Script, `hi`)**: Unicode block evaluation (`U+0900..U+097F`), Devanagari normalizer, bidirectional negation parsing (`नहीं`, `मत`, `ना`), and Hindi sentiment lexicons.
+3. **Hinglish (Romanized Hindi / Code-Mixed, `hi-Latn`)**: Custom transliterated token dictionaries, phoneme heuristics, mixed-script token splitting, leetspeak unmasking, and Hindi-English code-mixed profanity/complaint detection.
+
+---
+
+## 4. AI-Assisted Multi-Dimensional Classification
+
+The inference engine coordinates multi-dimensional classification using either fast lightweight baselines or deep transformer checkpoints:
+
+| Dimension | Canonical Labels | Default Technique |
+|---|---|---|
+| **Language** | `English`, `Hindi`, `Hinglish`, `Other`, `Uncertain` | Unicode script heuristic + romanized n-gram lexicon matching |
+| **Sentiment** | `Positive`, `Negative`, `Neutral`, `Uncertain` | Bilingual polarity lexicons with bidirectional negation parsing |
+| **Sentence Type / Intent** | `Statement`, `Question`, `Request / Instruction`, `Greeting`, `Opinion`, `Other` | Syntactic token matcher + regular expressions + TF-IDF intent classifier |
+| **Complaining** | `Complaining`, `Not complaining`, `Uncertain` | Complaint keyword matching, service dissatisfaction patterns, and negative sentiment alignment |
+| **Abuse & Profanity** | `Not abusive`, `Profanity`, `Insult`, `Harassment`, `Hate Speech`, `Threat`, `Other abuse` | Multilingual regex lexicon, character substitution deobfuscation, and intent mapping |
+| **Abuse Severity** | `None`, `Low`, `Medium`, `High`, `Critical` | Keyword-level severity weights, violent threat triggers, and target harassment rules |
+
+---
+
+## 5. Human Annotation & Review Workflow
+
+LinguaLabel implements strict human-in-the-loop safeguards:
+
+1. **Non-Destructive Advisory Contract**: AI predictions populate form controls only when the user clicks **Use AI** or **Accept All AI Suggestions**. AI predictions never silently overwrite saved human decisions.
+2. **Mandatory Explanatory Notes**: Any sentence marked with an `Uncertain` label requires an explanatory annotator note before the review can be approved.
+3. **Four-Stage Verification Status**: Sentences transition from *Unreviewed* to *Reviewed & approved*, *Needs second review*, or *Flagged for ambiguity*.
+4. **Smart Review Queue**: Sentences where models express low confidence (< 0.60) or where baseline rules and transformers disagree are automatically triaged for rapid human verification.
+
+---
+
+## 6. Abuse Detection & Severity Classification Guardrails
+
+Content moderation requires high precision and strict safeguards:
+
+- **Deobfuscation & Leetspeak Normalization**: Unmasks disguised profanities (e.g., `@$$hole`, `b!tch`, `f**k`, character repetition like `crap!!!!!`).
+- **Devanagari Normalization**: Collapses repeated matras, unifies nukta forms, and strips zero-width non-joiners (`ZWNJ`/`ZWJ`).
+- **Severity Invariance Guardrail**: If content is classified as `Not abusive`, its severity is strictly constrained to `None`. Conversely, severity inference can never independently declare benign content abusive.
+- **Multi-Label Aggregation**: Detects co-occurring abuse patterns (e.g., simultaneous personal insult and violent threat).
+
+---
+
+## 7. Model Training & Continuous Improvement Center
+
+Accessible to the platform owner via private administrative authentication, the Training Center enables complete lifecycle management:
+
+- **Owner Dataset Ingestion**: Upload labeled CSV/Excel datasets for specific tasks with automatic schema validation, missing-value checks, and class imbalance detection.
+- **Human Feedback Curation**: Curate and filter annotator corrections gathered from live labeling sessions; approve or reject suggestions for the training pool.
+- **Leakage-Safe Stratified Splitting**: Generates reproducible, stratified train/validation/sequestered-test splits with full provenance tracking and deduplication.
+- **Scratch-Isolated Training Jobs**: Trains calibrated scikit-learn classifiers (Logistic Regression, Linear SGD) in isolated runtime directories with hyperparameter controls.
+- **Side-by-Side Model Evaluation**: Evaluates candidate models against active production baselines across accuracy, macro-F1, per-class F1, language-stratified metrics, and false-positive diagnostic regressions.
+- **Atomic Promotion & Instant Rollback**: 1-click model activation with immediate runtime reload and safe rollback to previous versions or system baselines.
+
+---
+
+## 8. Installation Instructions (Linux)
+
+### Prerequisites
+- Python 3.10 to 3.14
+- Git
+- SQLite (built-in) or PostgreSQL
+
+### Setup Steps
+
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/Arshhh26/LinguaLabel.git
 cd LinguaLabel
 
-# Create and activate virtual environment
+# 2. Create and activate a virtual environment
 python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\Activate.ps1
+source .venv/bin/activate
 
-# Install baseline dependencies
+# 3. Install core dependencies
+pip install --upgrade pip
 pip install -r requirements.txt
 
-# Optional: Install deep learning transformer dependencies
-pip install torch transformers
-# Or for lightweight CPU-only inference:
-# pip install torch --index-url https://download.pytorch.org/whl/cpu && pip install transformers
+# 4. (Optional) Install deep learning transformer dependencies
+# Required only if using transformer backends (mDeBERTa, XLM-RoBERTa):
+pip install -r requirements-transformers.txt
 ```
 
-### 2. Launch the Web Application
+---
+
+## 9. Environment Configuration
+
+Copy the example configuration template and configure your local settings:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with appropriate values:
+
+```env
+# Application Environment
+APPLICATION_ENV=production
+
+# Database Connection (SQLite default)
+DATABASE_URL=sqlite:///lingualabel_local.db
+
+# Private Owner Secret Key (required to access Owner Analytics & Training Center)
+# Generate a secure 32+ character key: openssl rand -hex 32
+LINGUALABEL_ADMIN_KEY=your_secure_32_character_admin_key_here
+
+# Session Secret Key
+AUTH_SECRET_KEY=your_secure_32_character_session_key_here
+
+# Session Inactivity Timeout (minutes)
+SESSION_EXPIRATION_MINUTES=120
+```
+
+---
+
+## 10. Application Startup
+
+Run the Streamlit application from the project root:
+
 ```bash
 streamlit run app.py
 ```
-Open `http://localhost:8501` in your browser.
+
+The web application will be accessible at:
+```text
+http://localhost:8501
+```
+
+To access the private **Owner Analytics & Continuous Training Center**, click the discreet **🔐 Owner Analytics** button at the bottom of the sidebar or navigate to `http://localhost:8501/?owner=true` and enter your configured `LINGUALABEL_ADMIN_KEY`.
 
 ---
 
-## Transformer Architecture & Hardware Specifications
+## 11. Testing & Quality Assurance
 
-### Verified Checkpoints
-| Task | Checkpoint | Architecture | Intended Task & Labels | License |
-|---|---|---|---|---|
-| **Sentiment Polarity** | `cardiffnlp/twitter-xlm-roberta-base-sentiment` | XLM-RoBERTa (base, 278M params) | Multilingual 3-class sentiment (`Negative`, `Neutral`, `Positive`). Trained on 198M multilingual tweets. | MIT |
-| **Communicative Intent** | `MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7` | mDeBERTa-v3 (base, 278M params) | Zero-shot intent classification (`Question`, `Complaint`, `Review`, `General`, `Greeting`, `Request`). Evaluated on XNLI. | MIT |
-
-### Hardware & Memory Requirements
-- **GPU (Recommended for Transformer backend):** NVIDIA GPU with CUDA support (Compute Capability 7.0+, >= 4 GB VRAM, tested on RTX 4050 6GB).
-- **CPU Fallback:** Multi-core x86_64 CPU with >= 8 GB system RAM.
-- **Storage:** ~1.2 GB disk space for cached model weights in `~/.cache/huggingface/hub/` (never committed to repository).
-- **Graceful Fallback:** If `torch`/`transformers` are not installed, the platform automatically degrades to baseline heuristic inference without interruption.
-
-### Supported Languages
-- **English:** Full support across script heuristics, lexicons, and transformer backends.
-- **Hindi (Devanagari script):** Full support across script heuristics, negation rules, and multilingual transformers.
-- **Transliterated Hindi / Hinglish:** Supported via character n-gram classifiers and multilingual transformer tokenizers.
-- **Other / Code-Mixed:** Handled via uncertainty thresholding (< 0.60 defaults to `Uncertain`).
-
-### Known Limitations
-- Transformer checkpoints are uncalibrated: raw softmax outputs are probability scores, not true Bayesian confidences.
-- Zero-shot classification inference latency on CPU averages ~80–120ms per sample compared to <1ms for baseline heuristics.
-- Large transformer weights (~1.1 GB) should not be committed to Git; weights download on demand or are pre-warmed via the UI button.
-
----
-
-## Annotation Schema
-
-| Field | Allowed Values | Description |
-|---|---|---|
-| `language` | `English`, `Hindi`, `Other`, `Uncertain` | Detected or verified language script/vocabulary. |
-| `sentiment` | `Positive`, `Negative`, `Neutral`, `Not applicable`, `Uncertain` | Polarity of the sentence; use *Not applicable* for factual directives. |
-| `text_type` | `Statement`, `Question`, `Request / Instruction`, `Greeting`, `Other`, `Uncertain` | Communicative intent or syntactic form. |
-| `review_status` | `Reviewed — looks correct`, `Needs second review`, `Ambiguous`, `Skip` | Triage state for human review pipelines. |
-| `annotator_notes` | Free-form text | Explanatory rationale (mandatory for uncertain/triage items). |
-
----
-
-## Running the Automated Test Suite
-
-LinguaLabel includes an extensive test suite (**62 tests**) covering data ingestion, workflow validation, ML detectors, transformer backends, navigation edge cases, and graceful degradation:
+Run the comprehensive automated test suite (209 tests across 18 test modules):
 
 ```bash
-# Run full pytest suite
-PYTHONPATH=. pytest
+# Run all tests
+PYTHONPATH=. pytest -v
+
+# Run a specific test suite
+PYTHONPATH=. pytest tests/test_part11_4_inference_integration.py -v
+
+# Run with short summary output
+PYTHONPATH=. pytest -q
 ```
 
-### Test Suite Structure
-- `tests/test_upload_and_ids.py`: Multi-encoding CSV parsing, column detection, delimiter sniffing, and stable deterministic IDs.
-- `tests/test_part1_integration.py`: Ingestion pipeline integration and storage path isolation.
-- `tests/test_workflow.py`: The 4 validation rules, boundary navigation safety, next-unreviewed resolution, and UTF-8-SIG export.
-- `tests/test_ml_language.py`: Script heuristic, Latin/Devanagari codepoint checks, transliterated text, and fallback behavior.
-- `tests/test_ml_sentiment.py`: Polarity scoring, bidirectional Hindi & English negation parsing, and neutrality detection.
-- `tests/test_ml_text_type.py`: Syntactic matching for questions, greetings, requests, and declarative statements.
-- `tests/test_ml_transformers.py`: Model loader singleton, device resolution, mock transformer inference, hybrid engine switching, schema compatibility, and non-destructive contracts.
-- `tests/test_degradation.py`: Graceful degradation, availability checks, and non-destructive contracts.
+All 209 tests validate:
+- UTF-8 file reading, byte sniffing, and dataset stabilization.
+- Language, sentiment, intent, complaining, and abuse classifiers.
+- Multi-backend fallback and transformer integration.
+- Active learning priority scoring and disagreement algorithms.
+- Feedback recording and dataset management.
+- Continuous model training, evaluation, and version registry.
+- Privacy sanitization and anonymous telemetry.
 
 ---
 
-## Running Empirical Model Evaluation & Comparison
+## 12. Project Structure
 
-Evaluate and compare the ML engine backends against ground truth labeled datasets without any fabricated numbers:
-
-```bash
-# Comparative benchmark between Baseline and Transformer backends
-PYTHONPATH=. python -m ml.evaluate --dataset annotated_output.csv --compare
-
-# Evaluate against custom ground truth dataset
-PYTHONPATH=. python -m ml.evaluate --dataset path/to/ground_truth.csv
-```
-
-Outputs formatted comparative benchmark reports with:
-- Overall Accuracy (Baseline vs. Transformer)
-- Macro Precision, Recall, and F1-Score
-- Mean per-sample inference latency (ms)
-- Per-language accuracy breakdown (English vs. Hindi)
-- Statistical sample size disclaimers for small evaluation corpora
-
----
-
-## Architecture Overview
-
-```
+```text
 LinguaLabel/
-├── app.py                     # Streamlit frontend with backend switcher & annotation studio
-├── data_manager.py            # Ingestion, encodings, stable IDs, and storage isolation
-├── requirements.txt           # Project dependencies & optional transformer packages
-├── sample_data.csv            # Default seed multilingual dataset (20 sentences)
-├── annotated_output.csv       # Sample verified annotations with ground truth
-├── ml/                        # Modular machine learning package
-│   ├── base.py                # PredictionResult dataclass & BasePredictor interface
-│   ├── model_config.py        # Checkpoint registry, label mappings, and config dataclasses
-│   ├── model_registry.py      # Runtime model registry & caching singleton
-│   ├── engine.py              # MLEngine hybrid coordinator with fallback mechanisms
-│   ├── language_detector.py   # Script heuristics + char n-gram classifier
-│   ├── sentiment_detector.py  # Bilingual polarity lexicon + negation parser
-│   ├── text_type_detector.py  # Syntactic pattern matcher + intent classifier
-│   ├── evaluate.py            # Empirical comparative evaluation CLI & benchmark harness
-│   ├── transformers/          # Transformer backend subpackage
-│   │   ├── __init__.py
-│   │   ├── model_loader.py    # Safe model loader with device & cache management
-│   │   ├── sentiment_transformer.py # Multilingual XLM-RoBERTa sentiment classifier
-│   │   └── text_type_transformer.py # Multilingual zero-shot intent classifier
-│   └── lexicons/              # Curated keyword & polarity dictionaries
-│       ├── hindi_sentiment.json
-│       ├── english_sentiment.json
-│       └── text_type_keywords.json
-├── tests/                     # 62 automated pytest suites
-│   ├── test_upload_and_ids.py
-│   ├── test_part1_integration.py
-│   ├── test_workflow.py
-│   ├── test_ml_language.py
-│   ├── test_ml_sentiment.py
-│   ├── test_ml_text_type.py
-│   ├── test_ml_transformers.py
-│   └── test_degradation.py
-└── screenshots/               # UI preview screenshots
+├── app.py                      # Main application entry point & view router
+├── data_manager.py             # Dataset I/O, UTF-8 sniffing, column detection, ID hashing
+├── dashboard.py                # Research Mode model performance & evaluation dashboard
+├── active_learning_dashboard.py# Priority review queue & active learning analytics
+├── evaluate.py                 # CLI model evaluation wrapper
+├── README.md                   # Public documentation
+├── LICENSE                     # MIT License
+├── CONTRIBUTING.md             # Contributor guidelines
+├── CHANGELOG.md                # Release version history
+├── requirements.txt            # Core production dependencies
+├── requirements-transformers.txt # Optional transformer dependencies
+├── .env.example                # Environment configuration template
+├── .gitignore                  # Git exclusion rules
+│
+├── ui_home.py                  # Home view & dataset summary
+├── ui_import.py                # Dataset ingestion (CSV, Excel, paste, examples)
+├── ui_analyse.py               # 5-dimension AI-assisted labeling interface
+├── ui_review.py                # Triage queue for uncertain predictions
+├── ui_results.py               # Results data explorer & distribution charts
+├── ui_export.py                # Export engine (CSV UTF-8-SIG, Excel)
+├── ui_settings.py              # Application settings & mode toggle
+├── ui_admin.py                 # Private website owner analytics dashboard
+├── ui_training.py              # Model Training & Continuous Improvement Center
+├── ui_mappings.py              # Reversible label mappings & plain descriptions
+│
+├── ml/                         # Machine learning subsystem
+│   ├── engine.py               # Unified inference coordinator
+│   ├── base.py                 # PredictionResult dataclass contract
+│   ├── normalization.py        # Deobfuscation & Devanagari text normalizer
+│   ├── language_detector.py    # Script & n-gram language classifier
+│   ├── sentiment_detector.py   # Lexicon & negation sentiment analyzer
+│   ├── text_type_detector.py   # Syntactic & intent classifier
+│   ├── abuse_detector.py       # Multilingual abuse, profanity & threat classifier
+│   ├── benchmark.py            # Comparative evaluation & confusion matrices
+│   ├── model_config.py         # Hardware & threshold configuration
+│   ├── model_registry.py       # Singleton model caching
+│   ├── lexicons/               # Multilingual lexicons & keyword dictionaries
+│   ├── active_learning/        # Priority scoring, uncertainty & disagreement
+│   ├── training/               # Model training, dataset manager, versioning & evaluation
+│   └── transformers/           # XLM-RoBERTa & mDeBERTa pipeline loaders
+│
+├── db/                         # Database & analytics subsystem
+│   ├── config.py               # Environment configuration loader
+│   ├── session.py              # SQLAlchemy session lifecycle
+│   ├── models.py               # ORM schemas (telemetry & datasets)
+│   └── analytics.py            # Anonymous visitor tracking & usage telemetry
+│
+├── alembic/                    # Database migration scripts
+│   ├── env.py
+│   └── versions/               # Versioned migration files
+│
+├── evaluation_datasets/        # Canonical benchmark test datasets
+│   ├── abuse_eval.csv
+│   └── complaints_eval.csv
+│
+├── trained_models/             # Production model registry & active manifests
+│   ├── active_production.json
+│   └── model_registry.json
+│
+├── training_datasets/          # Ingested training datasets & prepared splits
+│   └── datasets_manifest.json
+│
+├── sample_data.csv             # Curated 20-sentence multilingual seed dataset
+└── tests/                      # 18 automated pytest suites (209 tests)
 ```
 
 ---
 
-## Screenshots
+## 13. Privacy & Security Information
 
-### 1. Annotation Workspace
-![LinguaLabel Annotation Workspace](screenshots/annotation.png)
+LinguaLabel is built with privacy and security as foundational requirements:
 
-### 2. Quality Analytics Dashboard
-![LinguaLabel Quality Analytics Dashboard](screenshots/quality_dashboard.png)
+- **100% Anonymous Public Usage**: Visitors do not create accounts, log in, or provide personal details.
+- **Zero Content Logging**: The analytics engine strictly sanitizes event metadata against an explicit whitelist. Actual sentence text, user inputs, and uploaded dataset contents are **never** logged to the telemetry database.
+- **First-Party Anonymous Tokens**: Uses randomly generated UUIDs with a 30-minute inactivity boundary for session deduplication. Zero third-party trackers, invasive fingerprinting, or cross-site cookies.
+- **Owner Access Isolation**: Owner controls and training operations are protected behind constant-time cryptographic verification (`hmac.compare_digest`) using an environment-stored secret key (`LINGUALABEL_ADMIN_KEY`).
+- **Local Data Sovereignty**: All annotations and uploaded files remain local to your deployment instance.
 
-### 3. Dataset Overview & Search Filters
-![LinguaLabel Dataset Overview](screenshots/dataset_overview.png)
+---
+
+## 14. Known Limitations
+
+- **Transformer Resource Consumption**: Multilingual transformer models (mDeBERTa, XLM-RoBERTa) require substantial RAM (>= 8 GB) or an NVIDIA GPU for low-latency batch inference. On low-resource CPUs, the default rule-based baseline is recommended.
+- **Dialectal Variation in Hinglish**: Romanized Hindi lacks standardized spelling conventions (e.g., `accha`, `achha`, `acha`). While LinguaLabel's normalizer handles common variants, highly idiosyncratic spellings may exhibit reduced confidence.
+- **Context-Dependent Sarcasm**: Sarcastic expressions without explicit syntactic indicators or polarity contradictions remain challenging for lexicon-based classifiers and may require human annotator triage.
+
+---
+
+## 15. License
+
+This project is licensed under the terms of the [MIT License](LICENSE).

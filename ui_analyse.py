@@ -24,9 +24,11 @@ from ml.base import PredictionResult
 from ml.engine import MLEngine
 from ml.model_config import MLBackend
 from ui_mappings import (
+    DISPLAY_ABUSE_OPTIONS,
     DISPLAY_LANGUAGE_OPTIONS,
     DISPLAY_REVIEW_STATUS_OPTIONS,
     DISPLAY_SENTIMENT_OPTIONS,
+    DISPLAY_SEVERITY_OPTIONS,
     DISPLAY_TEXT_TYPE_OPTIONS,
     generate_sentence_explanation,
     simplify_confidence,
@@ -63,12 +65,16 @@ def render_analyse_page(
     curr_lang_internal = str(row.get("language", "")).strip()
     curr_sent_internal = str(row.get("sentiment", "")).strip()
     curr_tt_internal = str(row.get("text_type", "")).strip()
+    curr_abuse_internal = str(row.get("abuse_category", "")).strip()
+    curr_sev_internal = str(row.get("abuse_severity", "")).strip()
     curr_status_internal = str(row.get("review_status", "")).strip()
     curr_notes = str(row.get("annotator_notes", "")).strip()
 
     curr_lang_disp = to_display_label("language", curr_lang_internal)
     curr_sent_disp = to_display_label("sentiment", curr_sent_internal)
     curr_tt_disp = to_display_label("text_type", curr_tt_internal)
+    curr_abuse_disp = to_display_label("abuse", curr_abuse_internal)
+    curr_sev_disp = curr_sev_internal if curr_sev_internal in DISPLAY_SEVERITY_OPTIONS else ("None" if curr_abuse_disp == "Not abusive" else "— Select —")
     curr_status_disp = to_display_label("review_status", curr_status_internal)
 
     # Top Navigation and Sentence Selector Bar
@@ -150,9 +156,14 @@ def render_analyse_page(
         sug_lang_disp = to_display_label("language", p_lang.label) if p_lang else "Not sure"
         conf_text_lang, conf_color_lang, conf_tip_lang = simplify_confidence(p_lang)
 
+        lang_key = f"widget_lang_{row_id}"
+        lang_opts = ["— Select —"] + DISPLAY_LANGUAGE_OPTIONS
+        if lang_key not in st.session_state:
+            st.session_state[lang_key] = curr_lang_disp if curr_lang_disp in lang_opts else "— Select —"
+
         def cb_accept_lang():
             if sug_lang_disp in DISPLAY_LANGUAGE_OPTIONS:
-                st.session_state[f"widget_lang_{row_id}"] = sug_lang_disp
+                st.session_state[lang_key] = sug_lang_disp
 
         q1_c1, q1_c2 = st.columns([3.8, 1.2])
         with q1_c1:
@@ -165,16 +176,12 @@ def render_analyse_page(
             </div>
             """, unsafe_allow_html=True)
         with q1_c2:
-            st.button("Use AI", key=f"btn_use_lang_{row_id}", on_click=cb_accept_lang, use_container_width=True, help=f"Use suggestion '{sug_lang_disp}'")
+            st.button("Use AI", key=f"btn_use_lang_{row_id}", on_click=cb_accept_lang, width="stretch", help=f"Use suggestion '{sug_lang_disp}'")
 
-        lang_opts = ["— Select —"] + DISPLAY_LANGUAGE_OPTIONS
-        curr_val_lang = st.session_state.get(f"widget_lang_{row_id}", curr_lang_disp)
-        lang_idx = lang_opts.index(curr_val_lang) if curr_val_lang in lang_opts else 0
         sel_lang_disp = st.selectbox(
             "Language Selector",
             lang_opts,
-            index=lang_idx,
-            key=f"widget_lang_{row_id}",
+            key=lang_key,
             label_visibility="collapsed",
         )
 
@@ -185,9 +192,14 @@ def render_analyse_page(
         sug_sent_disp = to_display_label("sentiment", p_sent.label) if p_sent else "Not sure"
         conf_text_sent, conf_color_sent, conf_tip_sent = simplify_confidence(p_sent)
 
+        sent_key = f"widget_sent_{row_id}"
+        sent_opts = ["— Select —"] + DISPLAY_SENTIMENT_OPTIONS
+        if sent_key not in st.session_state:
+            st.session_state[sent_key] = curr_sent_disp if curr_sent_disp in sent_opts else "— Select —"
+
         def cb_accept_sent():
             if sug_sent_disp in DISPLAY_SENTIMENT_OPTIONS:
-                st.session_state[f"widget_sent_{row_id}"] = sug_sent_disp
+                st.session_state[sent_key] = sug_sent_disp
 
         q2_c1, q2_c2 = st.columns([3.8, 1.2])
         with q2_c1:
@@ -200,16 +212,12 @@ def render_analyse_page(
             </div>
             """, unsafe_allow_html=True)
         with q2_c2:
-            st.button("Use AI", key=f"btn_use_sent_{row_id}", on_click=cb_accept_sent, use_container_width=True, help=f"Use suggestion '{sug_sent_disp}'")
+            st.button("Use AI", key=f"btn_use_sent_{row_id}", on_click=cb_accept_sent, width="stretch", help=f"Use suggestion '{sug_sent_disp}'")
 
-        sent_opts = ["— Select —"] + DISPLAY_SENTIMENT_OPTIONS
-        curr_val_sent = st.session_state.get(f"widget_sent_{row_id}", curr_sent_disp)
-        sent_idx = sent_opts.index(curr_val_sent) if curr_val_sent in sent_opts else 0
         sel_sent_disp = st.selectbox(
             "Sentiment Selector",
             sent_opts,
-            index=sent_idx,
-            key=f"widget_sent_{row_id}",
+            key=sent_key,
             label_visibility="collapsed",
         )
 
@@ -220,9 +228,14 @@ def render_analyse_page(
         sug_tt_disp = to_display_label("text_type", p_tt.label) if p_tt else "Not sure"
         conf_text_tt, conf_color_tt, conf_tip_tt = simplify_confidence(p_tt)
 
+        tt_key = f"widget_tt_{row_id}"
+        tt_opts = ["— Select —"] + DISPLAY_TEXT_TYPE_OPTIONS
+        if tt_key not in st.session_state:
+            st.session_state[tt_key] = curr_tt_disp if curr_tt_disp in tt_opts else "— Select —"
+
         def cb_accept_tt():
             if sug_tt_disp in DISPLAY_TEXT_TYPE_OPTIONS:
-                st.session_state[f"widget_tt_{row_id}"] = sug_tt_disp
+                st.session_state[tt_key] = sug_tt_disp
 
         q3_c1, q3_c2 = st.columns([3.8, 1.2])
         with q3_c1:
@@ -235,38 +248,106 @@ def render_analyse_page(
             </div>
             """, unsafe_allow_html=True)
         with q3_c2:
-            st.button("Use AI", key=f"btn_use_tt_{row_id}", on_click=cb_accept_tt, use_container_width=True, help=f"Use suggestion '{sug_tt_disp}'")
+            st.button("Use AI", key=f"btn_use_tt_{row_id}", on_click=cb_accept_tt, width="stretch", help=f"Use suggestion '{sug_tt_disp}'")
 
-        tt_opts = ["— Select —"] + DISPLAY_TEXT_TYPE_OPTIONS
-        curr_val_tt = st.session_state.get(f"widget_tt_{row_id}", curr_tt_disp)
-        tt_idx = tt_opts.index(curr_val_tt) if curr_val_tt in tt_opts else 0
         sel_tt_disp = st.selectbox(
             "Text Type Selector",
             tt_opts,
-            index=tt_idx,
-            key=f"widget_tt_{row_id}",
+            key=tt_key,
             label_visibility="collapsed",
         )
+
+        # -------------------------------------------------------------
+        # Question 4: Is there abusive language or profanity? (Part 11.2)
+        # -------------------------------------------------------------
+        p_abuse = preds.get("abuse_category") or preds.get("abuse")
+        p_sev = preds.get("abuse_severity")
+        sug_abuse_disp = to_display_label("abuse", p_abuse.label) if p_abuse else "Not sure"
+        if p_sev and p_sev.label in DISPLAY_SEVERITY_OPTIONS:
+            sug_sev_disp = p_sev.label
+        elif p_abuse and p_abuse.metadata and p_abuse.metadata.get("severity"):
+            sug_sev_disp = p_abuse.metadata.get("severity", "None")
+        else:
+            sug_sev_disp = "None"
+        conf_text_abuse, conf_color_abuse, conf_tip_abuse = simplify_confidence(p_abuse)
+
+        abuse_key = f"widget_abuse_{row_id}"
+        abuse_opts = ["— Select —"] + DISPLAY_ABUSE_OPTIONS
+        if abuse_key not in st.session_state:
+            st.session_state[abuse_key] = curr_abuse_disp if curr_abuse_disp in abuse_opts else "— Select —"
+
+        sev_key = f"widget_sev_{row_id}"
+        sev_opts = DISPLAY_SEVERITY_OPTIONS
+        if sev_key not in st.session_state:
+            st.session_state[sev_key] = curr_sev_disp if curr_sev_disp in sev_opts else ("None" if st.session_state[abuse_key] == "Not abusive" else "Mild")
+
+        def cb_accept_abuse():
+            if sug_abuse_disp in DISPLAY_ABUSE_OPTIONS:
+                st.session_state[abuse_key] = sug_abuse_disp
+            if sug_sev_disp in DISPLAY_SEVERITY_OPTIONS:
+                st.session_state[sev_key] = sug_sev_disp
+
+        q4_c1, q4_c2 = st.columns([3.8, 1.2])
+        with q4_c1:
+            st.markdown(f"""
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; margin-bottom: 0.2rem;">
+                <strong style="font-size: 0.95rem; color: #f1f5f9;">4. Is there abusive language or profanity?</strong>
+                <span style="font-size: 0.75rem; color: {conf_color_abuse}; font-weight: 600;" title="{conf_tip_abuse}">
+                    AI suggests: <strong>{sug_abuse_disp}</strong> • {conf_text_abuse}
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
+        with q4_c2:
+            st.button("Use AI", key=f"btn_use_abuse_{row_id}", on_click=cb_accept_abuse, width="stretch", help=f"Use suggestion '{sug_abuse_disp}' ({sug_sev_disp})")
+
+        # Multi-label tags display if additional categories detected
+        if p_abuse and p_abuse.metadata and p_abuse.metadata.get("additional_categories"):
+            add_cats = p_abuse.metadata["additional_categories"]
+            pills = " ".join([f"<span style='background: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 2px 7px; border-radius: 4px; font-size: 0.74rem;'>+ {c}</span>" for c in add_cats])
+            st.markdown(f"<div style='margin-bottom: 0.4rem;'>{pills}</div>", unsafe_allow_html=True)
+
+        ab_col1, ab_col2 = st.columns([3, 2])
+        with ab_col1:
+            sel_abuse_disp = st.selectbox(
+                "Abuse Category Selector",
+                abuse_opts,
+                key=abuse_key,
+                label_visibility="collapsed",
+            )
+        with ab_col2:
+            # If user selected 'Not abusive', automatically sync severity to 'None' before selectbox instantiates
+            if sel_abuse_disp == "Not abusive":
+                st.session_state[sev_key] = "None"
+            sel_sev_disp = st.selectbox(
+                "Severity",
+                sev_opts,
+                key=sev_key,
+                label_visibility="collapsed",
+            )
 
     with c_right:
         st.markdown("### 📋 Review Status & Notes")
 
+        status_key = f"widget_status_{row_id}"
         status_opts = ["— Select —"] + DISPLAY_REVIEW_STATUS_OPTIONS
-        curr_val_status = st.session_state.get(f"widget_status_{row_id}", curr_status_disp)
-        stat_idx = status_opts.index(curr_val_status) if curr_val_status in status_opts else 0
+        if status_key not in st.session_state:
+            st.session_state[status_key] = curr_status_disp if curr_status_disp in status_opts else "— Select —"
+
         sel_status_disp = st.selectbox(
             "Review Status",
             status_opts,
-            index=stat_idx,
-            key=f"widget_status_{row_id}",
+            key=status_key,
             help="Mark as 'Reviewed & approved' when you have verified all labels."
         )
 
         # Annotator Explanatory Notes
+        notes_key = f"widget_notes_{row_id}"
+        if notes_key not in st.session_state:
+            st.session_state[notes_key] = curr_notes
+
         notes_input = st.text_area(
             "Explanatory Notes (required if unsure or flagged)",
-            value=curr_notes,
-            key=f"widget_notes_{row_id}",
+            key=notes_key,
             height=110,
             placeholder="Add a short note explaining why this sentence is uncertain or difficult...",
         )
@@ -274,12 +355,16 @@ def render_analyse_page(
         # Quick Actions Card: Accept All AI Suggestions via on_click callback
         def cb_accept_all():
             if sug_lang_disp in DISPLAY_LANGUAGE_OPTIONS:
-                st.session_state[f"widget_lang_{row_id}"] = sug_lang_disp
+                st.session_state[lang_key] = sug_lang_disp
             if sug_sent_disp in DISPLAY_SENTIMENT_OPTIONS:
-                st.session_state[f"widget_sent_{row_id}"] = sug_sent_disp
+                st.session_state[sent_key] = sug_sent_disp
             if sug_tt_disp in DISPLAY_TEXT_TYPE_OPTIONS:
-                st.session_state[f"widget_tt_{row_id}"] = sug_tt_disp
-            st.session_state[f"widget_status_{row_id}"] = "Reviewed & approved"
+                st.session_state[tt_key] = sug_tt_disp
+            if sug_abuse_disp in DISPLAY_ABUSE_OPTIONS:
+                st.session_state[abuse_key] = sug_abuse_disp
+            if sug_sev_disp in DISPLAY_SEVERITY_OPTIONS:
+                st.session_state[sev_key] = sug_sev_disp
+            st.session_state[status_key] = "Reviewed & approved"
             try:
                 from db.analytics import record_usage_event
                 record_usage_event("interaction", "accept_ai_suggestions", count=1, visitor_id=st.session_state.get("_visitor_id"), session_id=st.session_state.get("_session_id"))
@@ -289,7 +374,7 @@ def render_analyse_page(
         st.markdown("<div style='margin-top: 0.75rem;'></div>", unsafe_allow_html=True)
         st.button(
             "✨ Accept All AI Suggestions",
-            use_container_width=True,
+            width="stretch",
             on_click=cb_accept_all,
             help="Fill the form with the AI suggestions without saving yet",
         )
@@ -299,6 +384,8 @@ def render_analyse_page(
         "language": to_internal_label("language", sel_lang_disp),
         "sentiment": to_internal_label("sentiment", sel_sent_disp),
         "text_type": to_internal_label("text_type", sel_tt_disp),
+        "abuse_category": to_internal_label("abuse", sel_abuse_disp),
+        "abuse_severity": sel_sev_disp,
         "review_status": to_internal_label("review_status", sel_status_disp),
         "annotator_notes": notes_input.strip(),
     }
@@ -332,33 +419,19 @@ def render_analyse_page(
             except Exception:
                 pass
 
-            # Also persist directly into user's database dataset if logged in
-            curr_user = st.session_state.get("current_user")
-            active_ds_id = st.session_state.get("active_dataset_id")
-            if curr_user and active_ds_id:
-                try:
-                    from db.service import update_sentence_annotation as db_update_sentence
-                    db_update_sentence(
-                        user_id=curr_user["id"],
-                        dataset_id=active_ds_id,
-                        sentence_id=str(row_id),
-                        values=internal_vals,
-                    )
-                except Exception:
-                    pass
-
             # Record human feedback if model predictions were present
             if preds:
                 try:
                     fb_mgr = FeedbackManager(root_dir)
-                    for t_name in ["language", "sentiment", "text_type"]:
-                        if t_name in preds and internal_vals.get(t_name):
+                    for t_name in ["language", "sentiment", "text_type", "abuse_category"]:
+                        pred_key = "abuse" if t_name == "abuse_category" else t_name
+                        if pred_key in preds and internal_vals.get(t_name):
                             fb_mgr.record_feedback(
                                 dataset_key=dataset_key,
                                 record_id=row_id,
                                 task=t_name,
                                 original_text=row_text,
-                                model_prediction=preds[t_name],
+                                model_prediction=preds[pred_key],
                                 human_label=internal_vals[t_name],
                                 annotator_notes=internal_vals.get("annotator_notes", ""),
                             )
@@ -370,7 +443,7 @@ def render_analyse_page(
                                         dataset_id=active_ds_id,
                                         sentence_id=str(row_id),
                                         task=t_name,
-                                        original_prediction=preds[t_name].to_dict(),
+                                        original_prediction=preds[pred_key].to_dict(),
                                         corrected_label=internal_vals[t_name],
                                         annotator_notes=internal_vals.get("annotator_notes", ""),
                                     )
@@ -390,24 +463,24 @@ def render_analyse_page(
     act_col1, act_col2, act_col3, act_col4 = st.columns([1, 1, 1.6, 1.6])
 
     with act_col1:
-        if st.button("← Previous", disabled=(idx == 0), use_container_width=True):
+        if st.button("← Previous", disabled=(idx == 0), width="stretch"):
             execute_save(show_errors=False)
             st.session_state.idx = max(0, idx - 1)
             st.rerun()
 
     with act_col2:
-        if st.button("Next →", disabled=(idx == total - 1), use_container_width=True):
+        if st.button("Next →", disabled=(idx == total - 1), width="stretch"):
             execute_save(show_errors=False)
             st.session_state.idx = min(total - 1, idx + 1)
             st.rerun()
 
     with act_col3:
-        if st.button("💾 Save Annotation", type="primary", use_container_width=True):
+        if st.button("💾 Save Annotation", type="primary", width="stretch"):
             if execute_save(show_errors=True):
                 st.rerun()
 
     with act_col4:
-        if st.button("⏩ Go to Next Unreviewed", use_container_width=True):
+        if st.button("⏩ Go to Next Unreviewed", width="stretch"):
             execute_save(show_errors=False)
             pending_idxs = df.index[df["review_status"].astype(str).str.strip().eq("")].tolist()
             future_candidates = [i for i in pending_idxs if i > idx]

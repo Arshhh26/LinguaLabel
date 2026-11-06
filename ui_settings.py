@@ -17,6 +17,7 @@ import streamlit as st
 
 from dashboard import render_model_performance_dashboard
 from active_learning_dashboard import render_active_learning_dashboard
+from ui_training import render_training_center
 from ml.engine import MLEngine
 from ml.model_config import MLBackend
 
@@ -107,16 +108,27 @@ def render_settings_page(
         </div>
         """, unsafe_allow_html=True)
 
-        res_tab1, res_tab2 = st.tabs([
+        tabs = [
             "📊 Model Benchmarks & Comparison (Part 8)",
             "🎯 Advanced Active Learning & Split Preparation (Part 9)",
-        ])
+        ]
+        is_owner = st.session_state.get("is_owner_authenticated", False)
+        if is_owner:
+            tabs.append("🧠 Model Training & Improvement Center (Part 11.3)")
 
-        with res_tab1:
+        res_tabs = st.tabs(tabs)
+
+        with res_tabs[0]:
             render_model_performance_dashboard(root_dir, df)
 
-        with res_tab2:
+        with res_tabs[1]:
             render_active_learning_dashboard(root_dir, df, ml_engine, dataset_key, storage_path)
+
+        if is_owner:
+            with res_tabs[2]:
+                render_training_center(root_dir, ml_engine)
+        else:
+            st.caption("🔒 Model Training & Continuous Improvement Center is reserved for the website owner. Authenticate in Owner Analytics to unlock.")
     else:
         st.info("💡 To access side-by-side model accuracy comparisons, confusion matrices, and active-learning split generators, toggle to **Research Mode** above.")
 

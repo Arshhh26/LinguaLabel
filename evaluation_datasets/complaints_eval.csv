@@ -1,0 +1,16 @@
+id,text,language,sentiment,text_type,review_status,annotator_notes
+c1,Your application is terrible and keeps crashing every minute.,English,Negative,Complaining,Reviewed — looks correct,App crash complaint
+c2,I have been waiting for two weeks and my package has still not arrived!,English,Negative,Complaining,Reviewed — looks correct,Shipping delay complaint
+c3,Worst customer support ever.,English,Negative,Complaining,Reviewed — looks correct,Service complaint
+c4,Yeh app bilkul kaam nahi kar raha hai bohot bura service hai.,Hinglish,Negative,Complaining,Reviewed — looks correct,Hinglish service complaint
+c5,Kab se wait kar raha hu delivery nahi aayi abhi tak.,Hinglish,Negative,Complaining,Reviewed — looks correct,Hinglish delay complaint
+c6,यह ऐप बिल्कुल बेकार है और बार-बार क्रैश हो रहा है।,Hindi,Negative,Complaining,Reviewed — looks correct,Devanagari app complaint
+c7,मेरा रिफंड अभी तक प्रोसेस नहीं हुआ बहुत निराशा हुई।,Hindi,Negative,Complaining,Reviewed — looks correct,Devanagari refund complaint
+c8,This is a very informative documentation page.,English,Positive,Statement,Reviewed — looks correct,Positive control
+c9,Can you please explain how to reset my password?,English,Neutral,Question,Reviewed — looks correct,Question control
+c10,Please send the invoice to my email address.,English,Neutral,Request / Instruction,Reviewed — looks correct,Request control
+c11,Good morning everyone hope you have a great day.,English,Positive,Greeting,Reviewed — looks correct,Greeting control
+c12,I hate this person so much.,English,Negative,Statement,Reviewed — looks correct,Negative sentiment without complaint
+c13,मुझे यह फिल्म बिल्कुल पसंद नहीं आई।,Hindi,Negative,Statement,Reviewed — looks correct,Devanagari negative opinion
+c14,Mera phone pura toot gaya bohot gussa aa raha hai.,Hinglish,Negative,Statement,Reviewed — looks correct,Hinglish frustration without service complaint
+

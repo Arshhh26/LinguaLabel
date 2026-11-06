@@ -98,6 +98,8 @@ def render_export_page(root_dir: Path, df: pd.DataFrame, dataset_key: str):
                 "Language": to_display_label("language", str(row.get("language", ""))),
                 "Sentiment": to_display_label("sentiment", str(row.get("sentiment", ""))),
                 "Sentence Type": to_display_label("text_type", str(row.get("text_type", ""))),
+                "Abuse Category": to_display_label("abuse", str(row.get("abuse_category", ""))),
+                "Abuse Severity": str(row.get("abuse_severity", "")),
                 "Human Verified": "Yes" if is_rev else "Pending",
                 "Review Notes": str(row.get("annotator_notes", "")),
             })
@@ -107,7 +109,7 @@ def render_export_page(root_dir: Path, df: pd.DataFrame, dataset_key: str):
 
     st.markdown("#### Preview Data to be Exported")
     st.caption(f"Ready to export **{len(final_export_df)}** sentence(s) with {len(final_export_df.columns)} columns.")
-    st.dataframe(final_export_df.head(5), use_container_width=True)
+    st.dataframe(final_export_df.head(5), width="stretch")
 
     st.markdown("---")
     st.markdown("#### Download Files")
@@ -153,7 +155,7 @@ def render_export_page(root_dir: Path, df: pd.DataFrame, dataset_key: str):
             file_name=f"lingualabel_{dataset_key}.csv",
             mime="text/csv",
             type="primary",
-            use_container_width=True,
+            width="stretch",
             on_click=cb_track_csv,
             help="Universal CSV format with UTF-8-SIG encoding. Opens cleanly in Microsoft Excel, Google Sheets, and Numbers without breaking Hindi text."
         )
@@ -167,10 +169,10 @@ def render_export_page(root_dir: Path, df: pd.DataFrame, dataset_key: str):
                 file_name=f"lingualabel_{dataset_key}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
                 on_click=cb_track_excel,
                 help="Native Microsoft Excel workbook format with styled column headers."
             )
         else:
-            st.button("📊 Excel Export Unavailable", disabled=True, use_container_width=True)
+            st.button("📊 Excel Export Unavailable", disabled=True, width="stretch")
 

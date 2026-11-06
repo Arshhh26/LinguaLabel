@@ -185,9 +185,9 @@ def test_text_type_transformer_with_mock_pipeline():
     assert res_req.confidence == 0.89
     assert res_req.metadata["extended_intent"] == "Request"
 
-    # Complaint mapped to UI label "Statement"
+    # Complaint mapped to UI label "Complaining" (Part 11.2)
     res_comp = tt.predict("This awful service is my official complaint.")
-    assert res_comp.label == "Statement"
+    assert res_comp.label == "Complaining"
     assert res_comp.confidence == 0.87
     assert res_comp.metadata["extended_intent"] == "Complaint"
 
@@ -282,7 +282,10 @@ def test_prediction_schema_compatibility():
     for backend in [MLBackend.BASELINE, MLBackend.TRANSFORMER]:
         engine = MLEngine(backend=backend)
         preds = engine.predict_all("Sample sentence for schema verification.")
-        assert set(preds.keys()) == {"language", "sentiment", "text_type"}
+        assert {"language", "sentiment", "text_type", "abuse"}.issubset(set(preds.keys()))
+        assert "complaint" in preds
+        assert "abuse_category" in preds
+        assert "abuse_severity" in preds
         for task, res in preds.items():
             assert isinstance(res, PredictionResult)
             d = res.to_dict()

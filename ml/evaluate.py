@@ -184,6 +184,7 @@ def compare_backends(dataset_path: Path) -> Dict[str, Any]:
     tasks = [
         ("Sentiment Polarity", "sentiment", baseline_engine.predict_sentiment, transformer_engine.predict_sentiment),
         ("Text Type Classification", "text_type", baseline_engine.predict_text_type, transformer_engine.predict_text_type),
+        ("Abusive Language Detection", "abuse_category", baseline_engine.predict_abuse, transformer_engine.predict_abuse),
     ]
 
     results = {

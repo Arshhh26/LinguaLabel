@@ -252,6 +252,8 @@ def create_dataset_with_sentences(
                 language=rec.get("language") or None,
                 sentiment=rec.get("sentiment") or None,
                 sentence_type=rec.get("text_type") or rec.get("sentence_type") or None,
+                abuse_category=rec.get("abuse_category") or None,
+                abuse_severity=rec.get("abuse_severity") or None,
                 review_status=rec.get("review_status") or "Pending review",
                 annotator_notes=rec.get("annotator_notes") or None,
                 annotation_metadata=rec.get("metadata") or None,
@@ -445,6 +447,10 @@ def update_sentence_annotation(
         sent.language = str(values.get("language", ""))
         sent.sentiment = str(values.get("sentiment", ""))
         sent.sentence_type = str(values.get("text_type", values.get("sentence_type", "")))
+        if "abuse_category" in values:
+            sent.abuse_category = str(values.get("abuse_category", ""))
+        if "abuse_severity" in values:
+            sent.abuse_severity = str(values.get("abuse_severity", ""))
         sent.review_status = str(values.get("review_status", ""))
         sent.annotator_notes = str(values.get("annotator_notes", ""))
         sent.updated_at = datetime.now(timezone.utc)
@@ -616,6 +622,8 @@ def export_user_dataset_df(
                 "language": sent.language or "",
                 "sentiment": sent.sentiment or "",
                 "text_type": sent.sentence_type or "",
+                "abuse_category": sent.abuse_category or "",
+                "abuse_severity": sent.abuse_severity or "",
                 "review_status": sent.review_status or "",
                 "annotator_notes": sent.annotator_notes or "",
             })

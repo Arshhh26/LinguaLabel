@@ -1,0 +1,36 @@
+{
+  "complaint_markers": {
+    "english": [
+      "keeps crashing", "crashing", "keeps failing", "does not work", "doesn't work",
+      "not working", "worst service", "terrible service", "horrible experience",
+      "very disappointed", "extremely disappointed", "bad experience", "very slow",
+      "delivery was late", "extremely late", "never arrived", "poor quality",
+      "broken", "waste of money", "waste of time", "pathetic", "unacceptable",
+      "pathetic support", "refund my money", "charged twice", "wrong item delivered",
+      "app is buggy", "frequent freeze", "freezing", "keeps freezing", "error every time",
+      "failed transaction", "money deducted", "no response from support",
+      "not arrived", "still not arrived", "worst customer support", "worst customer service",
+      "worst support", "waiting for two weeks", "waiting for my package"
+    ],
+    "hinglish": [
+      "baar baar crash", "crash ho raha", "chal nahi raha", "kaam nahi kar raha",
+      "kharab service", "bahut bekar", "bahut ghatiya", "bahut pareshan", "pareshan ho gaya",
+      "paisa waste", "time waste", "late delivery", "delivery late hui", "loot rahe ho",
+      "paise kat gaye", "refund nahi mila", "koi response nahi", "bakwas app",
+      "faaltu app", "thik se nahi chal raha", "baar baar band ho jata hai",
+      "fraud service", "dhokhadhadi", "kab se wait", "delivery nahi aayi",
+      "nahi aayi abhi tak", "bohot bura service", "bura service"
+    ],
+    "devanagari": [
+      "सेवा बहुत खराब", "बहुत खराब है", "काम नहीं कर रहा", "चल नहीं रहा",
+      "बार बार क्रैश", "बार-बार क्रैश", "क्रैश हो रहा", "पैसे कट गए", "पैसे वापस करो", "रिफंड नहीं मिला",
+      "धोखाधड़ी", "समय की बर्बादी", "घटिया ऐप", "खराब अनुभव", "लेट डिलीवरी",
+      "परेशान हो गया हूँ", "कोई जवाब नहीं दे रहा", "बिल्कुल बेकार", "रिफंड अभी तक",
+      "प्रोसेस नहीं हुआ", "बहुत निराशा"
+    ]
+  },
+  "frustration_markers": [
+    "yaar", "fed up", "tired of", "sick and tired", "had enough", "irritating",
+    "disgusting", "ridiculous", "shame on you", "worst ever", "shameful"
+  ]
+}

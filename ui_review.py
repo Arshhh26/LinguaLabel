@@ -206,7 +206,7 @@ def render_review_suggestions_page(
 
                 with c_card2:
                     st.markdown("<div style='margin-top: 0.5rem;'></div>", unsafe_allow_html=True)
-                    if st.button("✏️ Review Sentence", key=f"btn_review_item_{prec.record_id}", use_container_width=True, type="primary"):
+                    if st.button("✏️ Review Sentence", key=f"btn_review_item_{prec.record_id}", width="stretch", type="primary"):
                         st.session_state.idx = target_idx
                         st.query_params["view"] = "Analyse & Label"
                         st.rerun()

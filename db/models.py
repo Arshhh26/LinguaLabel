@@ -179,6 +179,8 @@ class Sentence(Base):
     language: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     sentiment: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     sentence_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    abuse_category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    abuse_severity: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     review_status: Mapped[str] = mapped_column(String(50), default="Pending review", nullable=False)
     annotator_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     annotation_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
@@ -212,6 +214,8 @@ class Sentence(Base):
             "language": self.language or "",
             "sentiment": self.sentiment or "",
             "sentence_type": self.sentence_type or "",
+            "abuse_category": self.abuse_category or "",
+            "abuse_severity": self.abuse_severity or "",
             "review_status": self.review_status,
             "annotator_notes": self.annotator_notes or "",
             "annotation_metadata": self.annotation_metadata or {},

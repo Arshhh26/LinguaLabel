@@ -1,14 +1,50 @@
+# Environments and Python virtual environments
 .venv/
+venv/
+ENV/
+env/
+
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
-.streamlit/secrets.toml
+*$py.class
+*.so
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local databases and runtime state
+*.db
+*.sqlite
+*.sqlite3
+lingualabel_local.db
+
+# Environment variables and secrets
 .env
-annotated_output.csv
+.streamlit/secrets.toml
+
+# Logs and runtime telemetry exports
+*.log
 saved_sessions/
-evaluation_datasets/
 benchmark_history/
 active_learning_feedback/
 active_learning_exports/
+evaluation_results/
+training_history/
+scratch/
+
+# Local user outputs and backup archives
+annotated_output.csv
 app_backup*.py
-*.db
+backups/
 legacy_backups/
+
+# Operating System and IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~

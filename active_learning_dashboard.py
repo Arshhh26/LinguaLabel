@@ -271,7 +271,7 @@ def render_active_learning_dashboard(
                         id_matches = df.index[df["id"].astype(str) == prec.record_id].tolist()
                         target_row_idx = id_matches[0] if id_matches else 0
 
-                        if st.button("✏️ Annotate Item", key=f"btn_annot_{prec.record_id}", use_container_width=True, type="primary"):
+                        if st.button("✏️ Annotate Item", key=f"btn_annot_{prec.record_id}", width="stretch", type="primary"):
                             st.session_state.idx = target_row_idx
                             st.query_params["view"] = "Annotate"
                             st.rerun()
@@ -327,7 +327,7 @@ def render_active_learning_dashboard(
                 st.caption("Model predicted class vs human annotator correction.")
                 if analytics["top_corrected_classes"]:
                     top_df = pd.DataFrame(analytics["top_corrected_classes"], columns=["Model Predicted Class", "Correction Count"])
-                    st.dataframe(top_df, use_container_width=True)
+                    st.dataframe(top_df, width="stretch")
                 else:
                     st.caption("No class corrections recorded.")
 
@@ -336,7 +336,7 @@ def render_active_learning_dashboard(
                 st.caption("Common transition pairs from model prediction to human label.")
                 if analytics["error_patterns"]:
                     ep_df = pd.DataFrame(analytics["error_patterns"], columns=["Prediction Transition", "Frequency"])
-                    st.dataframe(ep_df, use_container_width=True)
+                    st.dataframe(ep_df, width="stretch")
                 else:
                     st.caption("No transition patterns recorded.")
 
@@ -354,7 +354,7 @@ def render_active_learning_dashboard(
                     data=csv_data.encode("utf-8-sig"),
                     file_name=f"feedback_{dataset_key}.csv",
                     mime="text/csv",
-                    use_container_width=True,
+                    width="stretch",
                 )
             with exp_col2:
                 st.download_button(
@@ -362,7 +362,7 @@ def render_active_learning_dashboard(
                     data=jsonl_data.encode("utf-8"),
                     file_name=f"feedback_{dataset_key}.jsonl",
                     mime="application/jsonlines",
-                    use_container_width=True,
+                    width="stretch",
                 )
 
     # =========================================================================
@@ -462,7 +462,7 @@ def render_active_learning_dashboard(
                     data=tr_csv.encode("utf-8-sig"),
                     file_name=f"{target_task}_train_{split_res.fingerprint[:8]}.csv",
                     mime="text/csv",
-                    use_container_width=True,
+                    width="stretch",
                 )
             with d_col2:
                 val_csv = split_res.val.to_csv(index=False, encoding="utf-8-sig")
@@ -471,7 +471,7 @@ def render_active_learning_dashboard(
                     data=val_csv.encode("utf-8-sig"),
                     file_name=f"{target_task}_val_{split_res.fingerprint[:8]}.csv",
                     mime="text/csv",
-                    use_container_width=True,
+                    width="stretch",
                 )
             with d_col3:
                 test_csv = split_res.test.to_csv(index=False, encoding="utf-8-sig")
@@ -480,7 +480,7 @@ def render_active_learning_dashboard(
                     data=test_csv.encode("utf-8-sig"),
                     file_name=f"{target_task}_test_{split_res.fingerprint[:8]}.csv",
                     mime="text/csv",
-                    use_container_width=True,
+                    width="stretch",
                 )
 
 

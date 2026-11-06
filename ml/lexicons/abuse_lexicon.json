@@ -1,0 +1,85 @@
+{
+  "profanity_vulgarity": {
+    "english": [
+      "fuck", "fucking", "fucked", "fucker", "shit", "bullshit", "asshole",
+      "bitch", "bastard", "crap", "damn", "hell", "dick", "pussy", "cock",
+      "piss", "prick", "slut", "whore"
+    ],
+    "hinglish": [
+      "gaand", "gand", "lund", "loda", "lauda", "laude", "chut", "bhosdi",
+      "bhosdike", "saale", "kamine", "kutta", "kutte", "harami", "suar",
+      "bakwaas", "bakwas", "chirkut", "jhat", "jhant"
+    ],
+    "devanagari": [
+      "गांड", "गाँड", "लंड", "लौड़ा", "लौड़े", "चूत", "भोसड़ी", "भोसड़ीके",
+      "साले", "कमीना", "कमीने", "हरामी", "कुत्ता", "कुत्ते", "सुअर", "बकवास", "झांट"
+    ]
+  },
+  "severe_personal_insult": {
+    "english": [
+      "idiot", "moron", "stupid", "retard", "scumbag", "loser", "pathetic fool",
+      "worthless piece of shit", "brainless", "imbecile", "dumbass", "creep", "freak"
+    ],
+    "hinglish": [
+      "chutiya", "chutiye", "chutya", "chootiya", "ch00tiya", "maha chutiya",
+      "gadha", "ullu", "ullu ke patthe", "suar ki aulad", "kutta kamina",
+      "bewakoof", "ghatiya insan", "nalayak"
+    ],
+    "devanagari": [
+      "चूतिया", "चूतिये", "चूतिए", "गधा", "उल्लू", "उल्लू का पट्ठा", "सुअर की औलाद",
+      "कमीने", "नालायक", "घटिया इंसान", "बेवकूफ"
+    ]
+  },
+  "sexualized_abuse": {
+    "english": [
+      "motherfucker", "sisterfucker", "cocksucker", "cunt", "twat", "whore",
+      "slut", "bitch", "rape", "rapist"
+    ],
+    "hinglish": [
+      "madarchod", "madar chod", "maderchod", "m@darchod", "teri maa ki chut",
+      "teri ma ki chut", "teri maa ki ch*t", "teri ma ki ch*t", "tmkc",
+      "bhenchod", "behenchod", "bhosdike", "bhosdiwale", "randi", "randwa",
+      "chutmarike", "chut ke lund", "chudai", "chudwa", "lund", "l@nd", "lauda",
+      "laude", "gaand", "gand", "g@nd", "chut"
+    ],
+    "devanagari": [
+      "मादरचोद", "मादर चोद", "तेरी माँ की चूत", "तेरी मां की चूत", "भेनचोद",
+      "बहनचोद", "भोसड़ीके", "भोसड़ीवाले", "रंडी", "रंडवा", "चूतमारिके",
+      "गांड", "गाँड", "लंड", "लौड़ा", "लौड़े", "चूत"
+    ]
+  },
+  "harassment": {
+    "english": [
+      "i will find you", "you cannot hide", "stalking you", "harassing you",
+      "kill yourself", "die alone", "nobody loves you", "go kill yourself",
+      "you deserve to die", "i know where you live", "ruin your life",
+      "ruin your entire life", "stop posting or"
+    ],
+    "hinglish": [
+      "tujhe chain se jeene nahi dunga", "tera jeena haram kar dunga",
+      "tujhe barbad kar dunga", "mar ja tu", "tera ghar pata hai mujhe",
+      "tujhe dekh ke sab thukte hai"
+    ],
+    "devanagari": [
+      "तुझे चैन से जीने नहीं दूंगा", "तेरा जीना हराम कर दूंगा",
+      "तुझे बर्बाद कर दूंगा", "मर जा तू", "तेरा घर पता है मुझे"
+    ]
+  },
+  "threat": {
+    "english": [
+      "i will hurt you", "i will kill you", "i will shoot you", "i will stab you",
+      "i am going to beat you", "watch your back", "you are dead", "i'll break your face",
+      "i will destroy your life", "you will bleed", "hunt you down", "i will hunt you down",
+      "i will hunt you", "beat you up until you bleed", "beat you up"
+    ],
+    "hinglish": [
+      "jaan se maar dunga", "maar dalunga", "pitai hogi", "hath paon tod dunga",
+      "dekh lunga tujhe", "tujhe chhodunga nahi", "tera khun baha dunga",
+      "khatam kar dunga tujhe"
+    ],
+    "devanagari": [
+      "जान से मार दूंगा", "मार डालूँगा", "हाथ पाँव तोड़ दूंगा", "पीट दूंगा",
+      "देख लूँगा तुझे", "तुझे छोड़ूँगा नहीं", "खत्म कर दूंगा तुझे"
+    ]
+  }
+}

@@ -350,6 +350,7 @@ def run_full_benchmark(
     task_configs = [
         ("sentiment", "Sentiment Polarity", baseline_engine.predict_sentiment, transformer_engine.predict_sentiment if transformer_engine else None),
         ("text_type", "Text Type / Intent", baseline_engine.predict_text_type, transformer_engine.predict_text_type if transformer_engine else None),
+        ("abuse_category", "Abusive Language & Profanity", baseline_engine.predict_abuse, transformer_engine.predict_abuse if transformer_engine else None),
         ("language", "Language Identification", baseline_engine.predict_language, transformer_engine.predict_language if transformer_engine else None),
     ]
 

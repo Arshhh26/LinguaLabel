@@ -194,7 +194,7 @@ def render_model_performance_dashboard(root_dir: Path, live_df: Optional[pd.Data
         # Action bar: Run Evaluation
         col_act1, col_act2, col_act3 = st.columns([1.2, 1.2, 2.0])
         with col_act1:
-            run_btn = st.button("🚀 Run Benchmark Evaluation", type="primary", use_container_width=True)
+            run_btn = st.button("🚀 Run Benchmark Evaluation", type="primary", width="stretch")
         with col_act2:
             include_tf = st.checkbox("Execute Transformer Inference (GPU)", value=True, help="Runs XLM-RoBERTa and mDeBERTa on CUDA. Uncheck for fast baseline-only evaluation.")
 
@@ -549,7 +549,7 @@ def render_task_comparison(task_info: Dict[str, Any], task_key: str, bench_data:
         tooltip=["Backend", "Metric", alt.Tooltip("Score:Q", format=".1f")]
     ).properties(height=240).configure_view(strokeOpacity=0)
 
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")
 
     # --- DEEP-DIVE: CONFUSION MATRICES & PER-CLASS PERFORMANCE ---
     col_dd1, col_dd2 = st.columns(2)
@@ -559,9 +559,9 @@ def render_task_comparison(task_info: Dict[str, Any], task_key: str, bench_data:
         if b_cm:
             b_chart = render_confusion_matrix_heatmap(b_cm, color_scheme="blues")
             if b_chart is not None:
-                st.altair_chart(b_chart, use_container_width=True)
+                st.altair_chart(b_chart, width="stretch")
             cm_df = pd.DataFrame.from_dict(b_cm, orient="index")
-            st.dataframe(cm_df, use_container_width=True)
+            st.dataframe(cm_df, width="stretch")
         else:
             st.caption("No confusion matrix available.")
 
@@ -572,9 +572,9 @@ def render_task_comparison(task_info: Dict[str, Any], task_key: str, bench_data:
             if t_cm:
                 t_chart = render_confusion_matrix_heatmap(t_cm, color_scheme="purples")
                 if t_chart is not None:
-                    st.altair_chart(t_chart, use_container_width=True)
+                    st.altair_chart(t_chart, width="stretch")
                 tcm_df = pd.DataFrame.from_dict(t_cm, orient="index")
-                st.dataframe(tcm_df, use_container_width=True)
+                st.dataframe(tcm_df, width="stretch")
             else:
                 st.caption("No transformer confusion matrix available.")
         else:
@@ -601,7 +601,7 @@ def render_task_comparison(task_info: Dict[str, Any], task_key: str, bench_data:
             "Transformer F1": f"{tp.get('f1', 0.0):.2f}" if has_tf else "[N/A]",
         })
     if pc_rows:
-        st.dataframe(pd.DataFrame(pc_rows), hide_index=True, use_container_width=True)
+        st.dataframe(pd.DataFrame(pc_rows), hide_index=True, width="stretch")
 
     # --- MULTILINGUAL BREAKDOWN (Phase 2.D Requirement) ---
     st.markdown("**Multilingual Cross-Lingual Analysis**")
@@ -625,7 +625,7 @@ def render_task_comparison(task_info: Dict[str, Any], task_key: str, bench_data:
                 "Transformer Macro F1": f"{tl_inf.get('macro_f1', 0.0):.4f}" if has_tf else "[Fallback]",
                 "Significance Guardrail": "⚠️ N < 10 (Insufficient data)" if is_insufficient else "✅ Adequate Sample",
             })
-        st.dataframe(pd.DataFrame(l_rows), hide_index=True, use_container_width=True)
+        st.dataframe(pd.DataFrame(l_rows), hide_index=True, width="stretch")
     else:
         st.caption("No language column was provided in the ground-truth dataset.")
 
@@ -665,7 +665,7 @@ def render_confidence_analysis(bench_data: Dict[str, Any]):
                 y=alt.Y("count()", title="Prediction Count"),
                 tooltip=["count()", alt.Tooltip("Score:Q", bin=alt.Bin(maxbins=15))]
             ).properties(height=180).configure_view(strokeOpacity=0)
-            st.altair_chart(chart_b, use_container_width=True)
+            st.altair_chart(chart_b, width="stretch")
         else:
             st.caption("No baseline predictions recorded.")
 
@@ -678,7 +678,7 @@ def render_confidence_analysis(bench_data: Dict[str, Any]):
                 y=alt.Y("count()", title="Prediction Count"),
                 tooltip=["count()", alt.Tooltip("Score:Q", bin=alt.Bin(maxbins=15))]
             ).properties(height=180).configure_view(strokeOpacity=0)
-            st.altair_chart(chart_t, use_container_width=True)
+            st.altair_chart(chart_t, width="stretch")
         else:
             st.caption("No transformer predictions recorded.")
 
@@ -731,7 +731,7 @@ def render_benchmark_history(root_dir: Path):
         }
         for h in history
     ])
-    st.dataframe(hist_df, hide_index=True, use_container_width=True)
+    st.dataframe(hist_df, hide_index=True, width="stretch")
 
     col_h_load, col_h_status = st.columns([2, 3])
     with col_h_load:
@@ -759,7 +759,7 @@ def render_export_suite(bench_data: Dict[str, Any]):
             data=metrics_csv,
             file_name=f"{bench_data.get('benchmark_id', 'benchmark')}_metrics.csv",
             mime="text/csv",
-            use_container_width=True
+            width="stretch"
         )
 
     preds_csv = export_predictions_csv(bench_data)
@@ -769,7 +769,7 @@ def render_export_suite(bench_data: Dict[str, Any]):
             data=preds_csv,
             file_name=f"{bench_data.get('benchmark_id', 'benchmark')}_predictions.csv",
             mime="text/csv",
-            use_container_width=True
+            width="stretch"
         )
 
     md_report = export_markdown_report(bench_data)
@@ -779,6 +779,6 @@ def render_export_suite(bench_data: Dict[str, Any]):
             data=md_report,
             file_name=f"{bench_data.get('benchmark_id', 'benchmark')}_report.md",
             mime="text/markdown",
-            use_container_width=True
+            width="stretch"
         )
 

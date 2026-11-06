@@ -1,0 +1,30 @@
+id,text,language,sentiment,text_type,abuse_category,abuse_severity,review_status,annotator_notes
+a1,You are a madarchod for doing this.,Hinglish,Negative,Statement,Sexualized Abuse,Severe,Reviewed — looks correct,Hinglish sexualized abuse
+a2,Chutiya insaan hai tu bilkul.,Hinglish,Negative,Statement,Severe Personal Insult,Moderate,Reviewed — looks correct,Hinglish personal insult
+a3,Teri maa ki chut nikal yahan se.,Hinglish,Negative,Statement,Sexualized Abuse,Severe,Reviewed — looks correct,Hinglish severe mother abuse
+a4,Lund le le mera.,Hinglish,Negative,Statement,Sexualized Abuse,Severe,Reviewed — looks correct,Hinglish vulgar sexual abuse
+a5,Apni gaand mara.,Hinglish,Negative,Statement,Sexualized Abuse,Severe,Reviewed — looks correct,Hinglish sexual abuse
+a6,तू बहुत बड़ा मादरचोद है।,Hindi,Negative,Statement,Sexualized Abuse,Severe,Reviewed — looks correct,Devanagari sexualized abuse
+a7,अरे चूतिए चुप बैठ।,Hindi,Negative,Statement,Severe Personal Insult,Moderate,Reviewed — looks correct,Devanagari insult
+a8,तेरी माँ की चूत।,Hindi,Negative,Statement,Sexualized Abuse,Severe,Reviewed — looks correct,Devanagari sexual abuse
+a9,गांड में दम है तो सामने आ।,Hindi,Negative,Statement,Sexualized Abuse,Severe,Reviewed — looks correct,Devanagari vulgar insult
+a10,लंड जैसा चेहरा है तेरा।,Hindi,Negative,Statement,Sexualized Abuse,Severe,Reviewed — looks correct,Devanagari sexual insult
+a11,You are a fucking idiot.,English,Negative,Statement,Severe Personal Insult,Moderate,Reviewed — looks correct,English personal insult
+a12,What the fuck is this bullshit?,English,Negative,Statement,Profanity / Vulgarity,Mild,Reviewed — looks correct,English vulgarity
+a13,I will hunt you down and kill you tonight.,English,Negative,Statement,Threat,Severe,Reviewed — looks correct,English threat
+a14,I am going to beat you up until you bleed.,English,Negative,Statement,Threat,Severe,Reviewed — looks correct,English physical violence threat
+a15,Stop posting or I will ruin your entire life.,English,Negative,Statement,Harassment,Moderate,Reviewed — looks correct,English harassment
+a16,You m@darchod don't talk to me.,Hinglish,Negative,Statement,Sexualized Abuse,Severe,Reviewed — looks correct,Leetspeak masked abuse
+a17,Tu ch00tiya hai kya re?,Hinglish,Negative,Question,Severe Personal Insult,Moderate,Reviewed — looks correct,Leetspeak zero-substitution
+a18,Apna l@nd band rakh.,Hinglish,Negative,Statement,Sexualized Abuse,Severe,Reviewed — looks correct,Leetspeak l@nd variation
+a19,Apni g@nd sambhal.,Hinglish,Negative,Statement,Sexualized Abuse,Severe,Reviewed — looks correct,Leetspeak g@nd variation
+a20,Tu ek ch*tiya admi hai.,Hinglish,Negative,Statement,Severe Personal Insult,Moderate,Reviewed — looks correct,Asterisk masked insult
+a21,Someone called me an idiot in the street today.,English,Negative,Statement,Not abusive,None,Reviewed — looks correct,Contextual reporting of past abuse
+a22,"He screamed ""you are stupid"" at the meeting.",English,Negative,Statement,Not abusive,None,Reviewed — looks correct,Quoted abuse
+a23,The word madarchod is considered severe Hindi profanity.,English,Neutral,Statement,Not abusive,None,Reviewed — looks correct,Linguistic/academic discussion
+a24,In linguistics the term chutiya is studied as an insult.,English,Neutral,Statement,Not abusive,None,Reviewed — looks correct,Academic discussion
+a25,Your application is terrible and crashed my server.,English,Negative,Complaining,Not abusive,None,Reviewed — looks correct,Product criticism not targeted personal abuse
+a26,The service was very slow and the food was cold.,English,Negative,Complaining,Not abusive,None,Reviewed — looks correct,Service complaint not abusive
+a27,This was an excellent product and fast shipping!,English,Positive,Statement,Not abusive,None,Reviewed — looks correct,Positive control
+a28,Please help me configure my database settings.,English,Neutral,Request / Instruction,Not abusive,None,Reviewed — looks correct,Neutral request control
+

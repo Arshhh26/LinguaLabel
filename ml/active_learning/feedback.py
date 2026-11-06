@@ -189,6 +189,13 @@ class FeedbackManager:
             return []
         return records
 
+    def get_all_feedback(self) -> List[FeedbackRecord]:
+        """Returns all feedback records across datasets."""
+        all_recs = self.load_feedback_records(dataset_key="all")
+        if not all_recs:
+            all_recs = self.load_feedback_records(dataset_key=None)
+        return all_recs
+
     def export_feedback_csv(self, records: List[FeedbackRecord]) -> str:
         """Exports feedback records to CSV string with utf-8-sig encoding support."""
         if not records:

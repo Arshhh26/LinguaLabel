@@ -195,11 +195,11 @@ def render_home_page(root_dir: Path, active_df: Optional[pd.DataFrame] = None):
             </div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("📥 Import New Sentences", type="primary", use_container_width=True, key="home_btn_import"):
+        if st.button("📥 Import New Sentences", type="primary", width="stretch", key="home_btn_import"):
             st.query_params["view"] = "Import Sentences"
             st.rerun()
 
-        if st.button("✏️ Continue Labelling Active Data", use_container_width=True, key="home_btn_label"):
+        if st.button("✏️ Continue Labelling Active Data", width="stretch", key="home_btn_label"):
             st.query_params["view"] = "Analyse & Label"
             st.rerun()
 
@@ -217,5 +217,5 @@ def render_home_page(root_dir: Path, active_df: Optional[pd.DataFrame] = None):
                     "Last Modified": d["modified"],
                     "Status": "✅ Complete" if d["is_completed"] else "⏳ In Progress",
                 })
-            st.dataframe(pd.DataFrame(recent_rows), use_container_width=True)
+            st.dataframe(pd.DataFrame(recent_rows), width="stretch")
 
