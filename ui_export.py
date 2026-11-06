@@ -112,6 +112,38 @@ def render_export_page(root_dir: Path, df: pd.DataFrame, dataset_key: str):
     st.markdown("---")
     st.markdown("#### Download Files")
 
+    def cb_track_csv():
+        try:
+            from db.analytics import record_usage_event
+            v_id = st.session_state.get("_visitor_id")
+            s_id = st.session_state.get("_session_id")
+            record_usage_event(
+                "export",
+                "export_csv",
+                count=1,
+                metadata={"format": "csv", "row_count": len(final_export_df)},
+                visitor_id=v_id,
+                session_id=s_id,
+            )
+        except Exception:
+            pass
+
+    def cb_track_excel():
+        try:
+            from db.analytics import record_usage_event
+            v_id = st.session_state.get("_visitor_id")
+            s_id = st.session_state.get("_session_id")
+            record_usage_event(
+                "export",
+                "export_excel",
+                count=1,
+                metadata={"format": "xlsx", "row_count": len(final_export_df)},
+                visitor_id=v_id,
+                session_id=s_id,
+            )
+        except Exception:
+            pass
+
     d_col1, d_col2 = st.columns(2)
     with d_col1:
         csv_bytes = final_export_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
@@ -122,6 +154,7 @@ def render_export_page(root_dir: Path, df: pd.DataFrame, dataset_key: str):
             mime="text/csv",
             type="primary",
             use_container_width=True,
+            on_click=cb_track_csv,
             help="Universal CSV format with UTF-8-SIG encoding. Opens cleanly in Microsoft Excel, Google Sheets, and Numbers without breaking Hindi text."
         )
 
@@ -135,6 +168,7 @@ def render_export_page(root_dir: Path, df: pd.DataFrame, dataset_key: str):
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 type="primary",
                 use_container_width=True,
+                on_click=cb_track_excel,
                 help="Native Microsoft Excel workbook format with styled column headers."
             )
         else:

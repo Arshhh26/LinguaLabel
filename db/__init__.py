@@ -2,9 +2,23 @@
 LinguaLabel Database & Multi-User Architecture Package (Part 11)
 """
 
-from db.config import APPLICATION_ENV, AUTH_SECRET_KEY, DATABASE_URL, SESSION_EXPIRATION_MINUTES
-from db.models import Base, Dataset, Feedback, Sentence, User, Workspace
+from db.config import APPLICATION_ENV, AUTH_SECRET_KEY, DATABASE_URL, SESSION_EXPIRATION_MINUTES, ADMIN_SECRET_KEY
+from db.models import Base, Dataset, Feedback, Sentence, User, Workspace, Visitor, VisitorSession, PageView, UsageEvent
 from db.session import get_db_session, get_engine, get_session_factory, init_db
+from db.analytics import (
+    generate_anonymous_id,
+    verify_admin_key,
+    get_or_create_visitor,
+    register_or_resume_session,
+    record_page_view,
+    record_usage_event,
+    get_visitor_analytics,
+    get_usage_analytics,
+    get_activity_trends,
+    get_recent_events_log,
+    sanitize_event_metadata,
+)
+
 from db.auth import (
     authenticate_user,
     create_session_token,

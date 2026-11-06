@@ -263,3 +263,130 @@ class Feedback(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
+
+# =============================================================================
+# ANONYMOUS VISITOR & USAGE ANALYTICS MODELS (Part 11)
+# =============================================================================
+
+class Visitor(Base):
+    """
+    Anonymous visitor record identified by a randomly generated first-party UUID.
+    Zero invasive fingerprinting. Privacy-first tracking.
+    """
+    __tablename__ = "visitors"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    visit_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    pageview_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # Relationships
+    sessions: Mapped[List["VisitorSession"]] = relationship(
+        "VisitorSession", back_populates="visitor", cascade="all, delete-orphan"
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "first_seen_at": self.first_seen_at.isoformat() if self.first_seen_at else None,
+            "last_seen_at": self.last_seen_at.isoformat() if self.last_seen_at else None,
+            "visit_count": self.visit_count,
+            "pageview_count": self.pageview_count,
+        }
+
+
+class VisitorSession(Base):
+    """
+    Distinct visitor session with 30-minute inactivity boundary.
+    Deduplicates repeated Streamlit script executions.
+    """
+    __tablename__ = "visitor_sessions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    visitor_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("visitors.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    last_active_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    pageview_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    duration_seconds: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # Relationships
+    visitor: Mapped["Visitor"] = relationship("Visitor", back_populates="sessions")
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "visitor_id": self.visitor_id,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "last_active_at": self.last_active_at.isoformat() if self.last_active_at else None,
+            "pageview_count": self.pageview_count,
+            "duration_seconds": self.duration_seconds,
+        }
+
+
+class PageView(Base):
+    """
+    Individual page view entry. Triggered strictly on view navigation.
+    Streamlit component reruns on the same view are excluded.
+    """
+    __tablename__ = "page_views"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    visitor_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    session_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    page_name: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True, nullable=False
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "visitor_id": self.visitor_id,
+            "session_id": self.session_id,
+            "page_name": self.page_name,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+        }
+
+
+class UsageEvent(Base):
+    """
+    Privacy-conscious aggregate usage events.
+    Strictly forbids storing actual sentence texts or uploaded file contents.
+    """
+    __tablename__ = "usage_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    visitor_id: Mapped[Optional[str]] = mapped_column(String(64), index=True, nullable=True)
+    session_id: Mapped[Optional[str]] = mapped_column(String(64), index=True, nullable=True)
+    event_category: Mapped[str] = mapped_column(String(50), index=True, nullable=False)
+    event_action: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    event_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    metadata_json: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True, nullable=False
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "visitor_id": self.visitor_id,
+            "session_id": self.session_id,
+            "event_category": self.event_category,
+            "event_action": self.event_action,
+            "event_count": self.event_count,
+            "metadata_json": self.metadata_json or {},
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+        }
+
+

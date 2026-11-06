@@ -66,6 +66,14 @@ def render_review_suggestions_page(
     cache_key = f"friendly_review_queue_{dataset_key}_{len(df)}"
     if cache_key not in st.session_state or st.button("🔄 Refresh Suggestions", key="btn_refresh_friendly_queue"):
         with st.spinner("Analyzing sentences and sorting by review priority..."):
+            try:
+                from db.analytics import record_usage_event
+                v_id = st.session_state.get("_visitor_id")
+                s_id = st.session_state.get("_session_id")
+                record_usage_event("review", "active_learning_review", count=1, metadata={"row_count": len(df)}, visitor_id=v_id, session_id=s_id)
+            except Exception:
+                pass
+
             queue_obj = ActiveLearningQueue(
                 df=df,
                 ml_engine=ml_engine,

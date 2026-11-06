@@ -1,14 +1,20 @@
 """
 LinguaLabel — AI-Assisted Multilingual Text Analysis & Human Annotation (Part 11)
 
-Multi-User SaaS Architecture:
-- User registration, login, logout with Argon2id password hashing.
-- Cryptographically signed HMAC-SHA256 session tokens.
-- Strict multi-user data isolation across workspaces, datasets, sentences, and feedback.
-- Personal Dashboard with user-specific metrics and recent activity tracking.
-- Workspace & Dataset management with creation, renaming, and safe deletion.
-- Non-destructive legacy data migration tooling.
-- Full preservation of ML engine, active learning queue, and annotation integrity.
+Private Website Analytics & Owner Dashboard:
+- Public Website: Zero authentication requirement. Visitors can immediately paste sentences,
+  upload CSV/Excel datasets, run AI predictions, review suggestions, and export data.
+  No registration, no login, no passwords, and no user profiles.
+- Anonymous Visitor Analytics:
+  - First-party anonymous visitor tokens (UUIDs). Zero invasive fingerprinting.
+  - Session deduplication (30-minute inactivity boundary; Streamlit reruns do not inflate visits).
+  - Clear distinction between Page Views, Visits/Sessions, and Unique Visitors.
+  - Real-time tracking of daily, weekly, and monthly active visitors.
+- Aggregate Usage Telemetry:
+  - Tracks sentence analyses, datasets uploaded, CSV/Excel imports, and exports.
+  - Strict Zero-PII Policy: actual sentence text and dataset contents are never logged.
+- Private Owner Analytics Dashboard:
+  - Accessible only to the website owner via secret key verification.
 """
 
 from pathlib import Path
@@ -25,21 +31,17 @@ from data_manager import (
     COLS,
     SUPPORTED_ENCODINGS,
 )
-from db.auth import create_session_token, verify_session_token
-from db.service import (
-    export_user_dataset_df,
-    get_dataset,
-    list_datasets,
-    list_workspaces,
+from db.analytics import (
+    get_or_create_visitor,
+    record_page_view,
+    record_usage_event,
+    register_or_resume_session,
 )
 from db.session import init_db
 from ml.engine import MLEngine
 from ml.model_config import MLBackend
 
 # Modular UI views
-from ui_auth import logout_current_user, render_auth_page
-from ui_dashboard import render_personal_dashboard
-from ui_workspaces import render_workspaces_page
 from ui_home import render_home_page
 from ui_import import render_import_page
 from ui_analyse import render_analyse_page
@@ -47,6 +49,7 @@ from ui_review import render_review_suggestions_page
 from ui_results import render_my_results_page
 from ui_export import render_export_page
 from ui_settings import render_settings_page
+from ui_admin import render_admin_dashboard
 
 # Core Paths & Constants preserved for backward compatibility
 ROOT = Path(__file__).parent
@@ -59,124 +62,68 @@ OPTIONS = {
     "review_status": ["— Select —", "Reviewed — looks correct", "Needs second review", "Ambiguous", "Skip"],
 }
 
-# Streamlit Page Configuration
+# Streamlit Page Config
 st.set_page_config(
-    page_title="LinguaLabel — Multilingual Text Labelling",
+    page_title="LinguaLabel — Multilingual Annotation & Analytics",
     page_icon="🌐",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Deep Dark SaaS Styling (Linear / Vercel aesthetic)
+# Custom CSS styling
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
-html, body, [class*="css"], .stApp {
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-    color: #e2e8f0;
-    background-color: #080c14;
-}
-
+/* Modern, dark, high-contrast theme */
 .stApp {
-    background: radial-gradient(circle at 50% 0%, #0e172a 0%, #080c14 70%) !important;
+    background-color: #0b0f19;
+    color: #f1f5f9;
 }
-
-.block-container {
-    padding-top: 1.5rem !important;
-    padding-bottom: 2.5rem !important;
-    max-width: 1360px !important;
-}
-
-[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0c1322 0%, #080c14 100%) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
-    padding-top: 1.25rem !important;
-}
-
 .sidebar-brand {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.25rem 0 1.25rem 0;
-    margin-bottom: 0.5rem;
+    padding: 0.5rem 0.2rem 1.25rem 0.2rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 1.25rem;
 }
-
 .brand-icon {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #0284c7 0%, #6366f1 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+    font-size: 1.8rem;
+    background: linear-gradient(135deg, #38bdf8, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
-
 .brand-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #ffffff;
+    font-size: 1.35rem;
+    font-weight: 800;
     letter-spacing: -0.02em;
-    line-height: 1.1;
+    color: #ffffff;
 }
-
 .brand-badge {
     font-size: 0.65rem;
-    font-weight: 600;
-    background: rgba(14, 165, 233, 0.15);
+    padding: 2px 7px;
+    border-radius: 9999px;
+    background: rgba(56, 189, 248, 0.15);
     color: #38bdf8;
-    border: 1px solid rgba(56, 189, 248, 0.25);
-    padding: 2px 6px;
-    border-radius: 4px;
-    letter-spacing: 0.05em;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    font-weight: 600;
     text-transform: uppercase;
+    margin-left: 0.4rem;
 }
-
 .sidebar-section-title {
-    font-size: 0.7rem;
+    font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #64748b;
-    margin: 1.25rem 0 0.5rem 0;
+    letter-spacing: 0.08em;
+    color: #94a3b8;
+    margin: 1.25rem 0 0.5rem 0.2rem;
 }
-
-[data-testid="stSidebar"] [data-testid="stRadio"] > label {
-    display: none !important;
+div[data-testid="stSidebar"] {
+    background-color: #0f172a;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
-
-[data-testid="stSidebar"] [data-testid="stRadio"] > div {
-    gap: 0.35rem;
-}
-
-[data-testid="stSidebar"] [data-testid="stRadio"] label {
-    padding: 0.65rem 0.9rem !important;
-    border-radius: 8px !important;
-    border: 1px solid transparent !important;
-    background: transparent !important;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
-    cursor: pointer !important;
-    margin-bottom: 2px !important;
-    color: #94a3b8 !important;
-    font-weight: 500 !important;
-    font-size: 0.88rem !important;
-}
-
-[data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
-    background: rgba(255, 255, 255, 0.04) !important;
-    color: #f1f5f9 !important;
-    border-color: rgba(255, 255, 255, 0.06) !important;
-}
-
-[data-testid="stSidebar"] [data-testid="stRadio"] label[data-checked="true"],
-[data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) {
-    background: linear-gradient(90deg, rgba(14, 165, 233, 0.15) 0%, rgba(14, 165, 233, 0.04) 100%) !important;
-    border: 1px solid rgba(56, 189, 248, 0.3) !important;
-    color: #38bdf8 !important;
-    font-weight: 600 !important;
+div[data-testid="stMetricValue"] {
+    font-weight: 800;
+    color: #ffffff;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -184,65 +131,25 @@ html, body, [class*="css"], .stApp {
 # Initialize database schema
 init_db()
 
+# Initialize anonymous visitor & session analytics tracking
+if "_visitor_id" not in st.session_state:
+    q_vid = st.query_params.get("_vid", "").strip()
+    visitor, _ = get_or_create_visitor(visitor_id=q_vid if q_vid else None)
+    st.session_state["_visitor_id"] = visitor.id
+    st.query_params["_vid"] = visitor.id
+
+visitor_id = st.session_state["_visitor_id"]
+curr_sess_id = st.session_state.get("_session_id")
+v_sess, _ = register_or_resume_session(visitor_id, session_id=curr_sess_id)
+st.session_state["_session_id"] = v_sess.id
+session_id = v_sess.id
+
 # Engine initialization
 if "ml_engine" not in st.session_state:
     st.session_state.ml_engine = MLEngine()
 ml_engine = st.session_state.ml_engine
 
-
-# =============================================================================
-# AUTHENTICATION GATEWAY
-# =============================================================================
-
-auth_token = st.session_state.get("auth_token")
-current_user = st.session_state.get("current_user")
-is_guest = st.session_state.get("is_guest", False)
-
-# Validate token if present
-if auth_token:
-    user_id = verify_session_token(auth_token)
-    if not user_id:
-        st.session_state.auth_token = None
-        st.session_state.current_user = None
-        current_user = None
-
-if not current_user and not is_guest:
-    render_auth_page()
-    st.markdown("<hr style='border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 2rem 0 1rem 0;'>", unsafe_allow_html=True)
-    c_guest1, c_guest2, c_guest3 = st.columns([1, 2.2, 1])
-    with c_guest2:
-        if st.button("Continue as Demo Guest (Quick Local Inspection) →", use_container_width=True):
-            st.session_state.is_guest = True
-            st.rerun()
-    st.stop()
-
-
-# =============================================================================
-# WORKSPACE & DATASET CONTEXT
-# =============================================================================
-
-if current_user:
-    user_id = current_user["id"]
-    workspaces = list_workspaces(user_id)
-    if not workspaces:
-        from db.service import create_workspace
-        ws_new, _ = create_workspace(user_id, "Personal Workspace", "Default workspace")
-        workspaces = [ws_new] if ws_new else []
-
-    if "active_workspace_id" not in st.session_state or not st.session_state.active_workspace_id:
-        st.session_state.active_workspace_id = workspaces[0].id if workspaces else ""
-
-    # Synchronize active dataset if an active_dataset_id is set
-    active_ds_id = st.session_state.get("active_dataset_id")
-    if active_ds_id and ("active_df" not in st.session_state or st.session_state.active_df is None or st.session_state.active_df.empty):
-        df_loaded, _ = export_user_dataset_df(user_id, active_ds_id)
-        if df_loaded is not None and not df_loaded.empty:
-            st.session_state.active_df = df_loaded
-            ds_obj = get_dataset(user_id, active_ds_id)
-            if ds_obj:
-                st.session_state.active_dataset_key = ds_obj.name
-
-# Fallback initialization for guest or default sample
+# Fallback initialization for default sample or session dataset
 if "active_df" not in st.session_state or st.session_state.active_df is None:
     sample_path = ROOT / "sample_data.csv"
     out_path = ROOT / "annotated_output.csv"
@@ -265,7 +172,7 @@ storage_path = st.session_state.get("active_storage_path", ROOT / "annotated_out
 
 
 # =============================================================================
-# SIDEBAR NAVIGATION & USER PROFILE
+# SIDEBAR NAVIGATION
 # =============================================================================
 
 with st.sidebar:
@@ -277,60 +184,15 @@ with st.sidebar:
                 <span class="brand-title">LinguaLabel</span>
                 <span class="brand-badge">Part 11</span>
             </div>
-            <div style="font-size: 0.74rem; color: #94a3b8; margin-top: 1px;">Multi-User Annotation Suite</div>
+            <div style="font-size: 0.74rem; color: #94a3b8; margin-top: 1px;">Multilingual Text Annotation</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # User Profile Pill
-    if current_user:
-        st.markdown(f"""
-        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.75rem 0.9rem; margin-bottom: 0.75rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <div style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Signed In As</div>
-                    <div style="font-size: 0.92rem; font-weight: 700; color: #f8fafc; margin-top: 0.1rem;">👤 {current_user['username']}</div>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("🚪 Sign Out", use_container_width=True, help="Log out of your account"):
-            logout_current_user()
-    else:
-        st.markdown("""
-        <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 0.65rem 0.85rem; margin-bottom: 0.75rem;">
-            <div style="font-size: 0.75rem; color: #fbbf24; font-weight: 600;">Demo Guest Mode</div>
-            <div style="font-size: 0.7rem; color: #cbd5e1; margin-top: 0.1rem;">Sign in to isolate personal workspaces.</div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("🔐 Sign In / Create Account", use_container_width=True):
-            st.session_state.is_guest = False
-            st.rerun()
-
-    # Workspace Switcher (if logged in)
-    if current_user and workspaces:
-        st.markdown('<div class="sidebar-section-title">Current Workspace</div>', unsafe_allow_html=True)
-        ws_dict = {w.name: w.id for w in workspaces}
-        curr_active_ws = st.session_state.get("active_workspace_id", workspaces[0].id)
-        default_name = next((name for name, wid in ws_dict.items() if wid == curr_active_ws), list(ws_dict.keys())[0])
-
-        sel_ws_sidebar = st.selectbox(
-            "Sidebar Workspace Selector",
-            list(ws_dict.keys()),
-            index=list(ws_dict.keys()).index(default_name),
-            label_visibility="collapsed",
-            key="sb_ws_select",
-        )
-        new_ws_id = ws_dict.get(sel_ws_sidebar)
-        if new_ws_id != st.session_state.get("active_workspace_id"):
-            st.session_state.active_workspace_id = new_ws_id
-            st.rerun()
-
     st.markdown('<div class="sidebar-section-title">Navigation</div>', unsafe_allow_html=True)
 
     nav_options = [
-        "Personal Dashboard",
-        "Workspaces & Datasets",
+        "Home",
         "Import Sentences",
         "Analyse & Label",
         "Review Suggestions",
@@ -339,26 +201,39 @@ with st.sidebar:
         "Settings",
     ]
 
+    is_admin_mode = (
+        st.query_params.get("admin") in ("true", "1")
+        or st.query_params.get("owner") in ("true", "1")
+        or st.session_state.get("main_nav_radio") == "Owner Analytics"
+    )
+
+    if is_admin_mode and "Owner Analytics" not in nav_options:
+        nav_options.append("Owner Analytics")
+
     # Handle URL query parameter routing
     default_idx = 0
-    if "view" in st.query_params:
+    if is_admin_mode and "Owner Analytics" in nav_options:
+        default_idx = nav_options.index("Owner Analytics")
+    elif "view" in st.query_params:
         qp = st.query_params.get("view", "").strip().lower()
-        if qp in ("dashboard", "home", "welcome"):
+        if qp in ("home", "welcome", "dashboard"):
             default_idx = 0
-        elif qp in ("workspaces", "projects", "datasets"):
-            default_idx = 1
         elif qp in ("import sentences", "import", "upload"):
-            default_idx = 2
+            default_idx = 1
         elif qp in ("analyse & label", "annotate", "label", "analysis"):
-            default_idx = 3
+            default_idx = 2
         elif qp in ("review suggestions", "active learning", "review"):
-            default_idx = 4
+            default_idx = 3
         elif qp in ("my results", "quality dashboard", "dataset overview", "results"):
-            default_idx = 5
+            default_idx = 4
         elif qp in ("export data", "export", "download"):
-            default_idx = 6
+            default_idx = 5
         elif qp in ("settings", "model performance", "research"):
-            default_idx = 7
+            default_idx = 6
+        elif qp in ("owner analytics", "admin", "owner"):
+            if "Owner Analytics" not in nav_options:
+                nav_options.append("Owner Analytics")
+            default_idx = nav_options.index("Owner Analytics")
 
     view = st.radio(
         "Navigation",
@@ -384,26 +259,33 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
+    # Discreet website owner analytics entry
+    st.markdown("<div style='margin-top: 2rem;'></div>", unsafe_allow_html=True)
+    if st.button("🔐 Owner Analytics", use_container_width=True, help="Private website analytics for the site owner"):
+        st.query_params["owner"] = "true"
+        st.session_state["main_nav_radio"] = "Owner Analytics"
+        st.rerun()
+
 
 # =============================================================================
-# VIEW ROUTER
+# VIEW ROUTER & DEDUPLICATED PAGE VIEW TRACKING
 # =============================================================================
+
+# Deduplicated page view tracking: only records when active view changes
+last_view = st.session_state.get("_last_tracked_view")
+if view != last_view:
+    try:
+        record_page_view(visitor_id, session_id, view)
+        st.session_state["_last_tracked_view"] = view
+    except Exception:
+        pass
 
 # Temporary action messages
 if "msg" in st.session_state:
     st.success(st.session_state.pop("msg"))
 
-if view == "Personal Dashboard":
-    if current_user:
-        render_personal_dashboard(current_user)
-    else:
-        render_home_page(ROOT, df)
-
-elif view == "Workspaces & Datasets":
-    if current_user:
-        render_workspaces_page(ROOT, current_user)
-    else:
-        st.info("Please sign in or create an account to access workspaces and dataset management.")
+if view == "Home":
+    render_home_page(ROOT, df)
 
 elif view == "Import Sentences":
     render_import_page(ROOT)
@@ -423,3 +305,6 @@ elif view == "Export Data":
 
 elif view == "Settings":
     render_settings_page(ROOT, df, ml_engine, dataset_key, storage_path)
+
+elif view == "Owner Analytics":
+    render_admin_dashboard()

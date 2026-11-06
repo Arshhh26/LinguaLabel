@@ -179,6 +179,19 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
 
                         _save_to_user_db(current_user, target_ws_id, ds_name_input or clean_ds_title, stable_df, uploaded_file.name, d_key)
 
+                        # Record anonymous aggregate usage event
+                        try:
+                            from db.analytics import record_usage_event
+                            v_id = st.session_state.get("_visitor_id")
+                            s_id = st.session_state.get("_session_id")
+                            is_excel = filename.endswith(".xlsx") or filename.endswith(".xls")
+                            fmt_label = "xlsx" if is_excel else "csv"
+                            act_label = "excel_import" if is_excel else "csv_import"
+                            record_usage_event("import", act_label, count=1, metadata={"format": fmt_label, "row_count": len(stable_df)}, visitor_id=v_id, session_id=s_id)
+                            record_usage_event("import", "dataset_upload", count=1, metadata={"format": fmt_label, "row_count": len(stable_df)}, visitor_id=v_id, session_id=s_id)
+                        except Exception:
+                            pass
+
                         st.session_state.active_df = stable_df
                         st.session_state.active_dataset_key = ds_name_input or d_key
                         st.session_state.active_storage_path = s_path
@@ -223,6 +236,15 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
 
                     _save_to_user_db(current_user, target_ws_id, p_name or "Pasted Batch", stable_df, "pasted_text.txt", d_key)
 
+                    try:
+                        from db.analytics import record_usage_event
+                        v_id = st.session_state.get("_visitor_id")
+                        s_id = st.session_state.get("_session_id")
+                        record_usage_event("import", "paste_import", count=1, metadata={"format": "text", "row_count": len(stable_df)}, visitor_id=v_id, session_id=s_id)
+                        record_usage_event("import", "dataset_upload", count=1, metadata={"format": "text", "row_count": len(stable_df)}, visitor_id=v_id, session_id=s_id)
+                    except Exception:
+                        pass
+
                     st.session_state.active_df = stable_df
                     st.session_state.active_dataset_key = p_name or d_key
                     st.session_state.active_storage_path = s_path
@@ -259,6 +281,14 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
 
                     _save_to_user_db(current_user, target_ws_id, "Single Sentence Query", stable_df, "single_sentence.txt", d_key)
 
+                    try:
+                        from db.analytics import record_usage_event
+                        v_id = st.session_state.get("_visitor_id")
+                        s_id = st.session_state.get("_session_id")
+                        record_usage_event("analysis", "single_sentence_entry", count=1, metadata={"source": "manual_entry"}, visitor_id=v_id, session_id=s_id)
+                    except Exception:
+                        pass
+
                     st.session_state.active_df = stable_df
                     st.session_state.active_dataset_key = "Single Sentence"
                     st.session_state.active_storage_path = s_path
@@ -288,6 +318,14 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
                     stable_df.to_csv(out_path, index=False, encoding="utf-8-sig")
 
                 _save_to_user_db(current_user, target_ws_id, "Pre-Loaded 20 Examples", stable_df, "sample_data.csv", "default_sample")
+
+                try:
+                    from db.analytics import record_usage_event
+                    v_id = st.session_state.get("_visitor_id")
+                    s_id = st.session_state.get("_session_id")
+                    record_usage_event("import", "sample_dataset_load", count=1, metadata={"format": "sample_csv", "row_count": len(stable_df)}, visitor_id=v_id, session_id=s_id)
+                except Exception:
+                    pass
 
                 st.session_state.active_df = stable_df
                 st.session_state.active_dataset_key = "default_sample"

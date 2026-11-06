@@ -99,6 +99,23 @@ def render_analyse_page(
         preds = ml_engine.predict_all(row_text)
         st.session_state[f"ml_preds_{row_id}"] = preds
 
+        # Anonymous aggregate telemetry: count sentence analysis once per row in this session
+        tracked_analysis_key = f"_tracked_analysis_{row_id}"
+        if not st.session_state.get(tracked_analysis_key, False):
+            st.session_state[tracked_analysis_key] = True
+            try:
+                from db.analytics import record_usage_event
+                record_usage_event(
+                    "analysis",
+                    "sentence_analysis",
+                    count=1,
+                    metadata={"task": "predict_all"},
+                    visitor_id=st.session_state.get("_visitor_id"),
+                    session_id=st.session_state.get("_session_id"),
+                )
+            except Exception:
+                pass
+
     # Sentence Hero Card
     st.markdown(f"""
     <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 1.5rem; margin: 0.75rem 0 1.25rem 0; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
@@ -263,6 +280,11 @@ def render_analyse_page(
             if sug_tt_disp in DISPLAY_TEXT_TYPE_OPTIONS:
                 st.session_state[f"widget_tt_{row_id}"] = sug_tt_disp
             st.session_state[f"widget_status_{row_id}"] = "Reviewed & approved"
+            try:
+                from db.analytics import record_usage_event
+                record_usage_event("interaction", "accept_ai_suggestions", count=1, visitor_id=st.session_state.get("_visitor_id"), session_id=st.session_state.get("_session_id"))
+            except Exception:
+                pass
 
         st.markdown("<div style='margin-top: 0.75rem;'></div>", unsafe_allow_html=True)
         st.button(
@@ -304,6 +326,12 @@ def render_analyse_page(
         )
 
         if save_ok:
+            try:
+                from db.analytics import record_usage_event
+                record_usage_event("interaction", "save_annotation", count=1, visitor_id=st.session_state.get("_visitor_id"), session_id=st.session_state.get("_session_id"))
+            except Exception:
+                pass
+
             # Also persist directly into user's database dataset if logged in
             curr_user = st.session_state.get("current_user")
             active_ds_id = st.session_state.get("active_dataset_id")

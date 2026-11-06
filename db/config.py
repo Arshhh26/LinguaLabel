@@ -37,3 +37,10 @@ try:
 except ValueError:
     SESSION_EXPIRATION_MINUTES = 120
 
+# Private Website Owner / Admin Secret Key for Analytics Dashboard
+ADMIN_SECRET_KEY = os.getenv(
+    "LINGUALABEL_ADMIN_KEY",
+    os.getenv("ADMIN_SECRET_KEY", "lingualabel-admin-secret-2026")
+).strip()
+
+
