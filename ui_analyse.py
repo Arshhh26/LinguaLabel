@@ -304,6 +304,21 @@ def render_analyse_page(
         )
 
         if save_ok:
+            # Also persist directly into user's database dataset if logged in
+            curr_user = st.session_state.get("current_user")
+            active_ds_id = st.session_state.get("active_dataset_id")
+            if curr_user and active_ds_id:
+                try:
+                    from db.service import update_sentence_annotation as db_update_sentence
+                    db_update_sentence(
+                        user_id=curr_user["id"],
+                        dataset_id=active_ds_id,
+                        sentence_id=str(row_id),
+                        values=internal_vals,
+                    )
+                except Exception:
+                    pass
+
             # Record human feedback if model predictions were present
             if preds:
                 try:
@@ -319,6 +334,20 @@ def render_analyse_page(
                                 human_label=internal_vals[t_name],
                                 annotator_notes=internal_vals.get("annotator_notes", ""),
                             )
+                            if curr_user and active_ds_id:
+                                try:
+                                    from db.service import record_feedback as db_record_feedback
+                                    db_record_feedback(
+                                        user_id=curr_user["id"],
+                                        dataset_id=active_ds_id,
+                                        sentence_id=str(row_id),
+                                        task=t_name,
+                                        original_prediction=preds[t_name].to_dict(),
+                                        corrected_label=internal_vals[t_name],
+                                        annotator_notes=internal_vals.get("annotator_notes", ""),
+                                    )
+                                except Exception:
+                                    pass
                 except Exception:
                     pass
 

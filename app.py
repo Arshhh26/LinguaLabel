@@ -1,17 +1,14 @@
 """
-LinguaLabel — AI-Assisted Multilingual Text Analysis & Human Annotation (Part 10)
+LinguaLabel — AI-Assisted Multilingual Text Analysis & Human Annotation (Part 11)
 
-Beginner-Friendly Product Transformation:
-"AI does the initial work. Humans make the final decisions."
-
-New 7-Page Simplified Navigation:
-1. Home — Clean welcome page with summary statistics and quick start.
-2. Import Sentences — Three simple input methods (Upload CSV/Excel, Paste sentences, Enter single sentence).
-3. Analyse & Label — Intuitive natural-language labeling interface with plain-language confidence and explanations.
-4. Review Suggestions — AI prioritization queue highlighting uncertain, conflicting, or incomplete sentences.
-5. My Results — Real-time dataset charts, sentiment/language breakdowns, and verified vs pending tracking.
-6. Export Data — One-click downloads as CSV (UTF-8-SIG) or Excel (.xlsx) with clean, beginner-friendly columns.
-7. Settings & Research Mode — User preferences, explanation toggles, and optional deep research diagnostics.
+Multi-User SaaS Architecture:
+- User registration, login, logout with Argon2id password hashing.
+- Cryptographically signed HMAC-SHA256 session tokens.
+- Strict multi-user data isolation across workspaces, datasets, sentences, and feedback.
+- Personal Dashboard with user-specific metrics and recent activity tracking.
+- Workspace & Dataset management with creation, renaming, and safe deletion.
+- Non-destructive legacy data migration tooling.
+- Full preservation of ML engine, active learning queue, and annotation integrity.
 """
 
 from pathlib import Path
@@ -28,10 +25,21 @@ from data_manager import (
     COLS,
     SUPPORTED_ENCODINGS,
 )
+from db.auth import create_session_token, verify_session_token
+from db.service import (
+    export_user_dataset_df,
+    get_dataset,
+    list_datasets,
+    list_workspaces,
+)
+from db.session import init_db
 from ml.engine import MLEngine
 from ml.model_config import MLBackend
 
 # Modular UI views
+from ui_auth import logout_current_user, render_auth_page
+from ui_dashboard import render_personal_dashboard
+from ui_workspaces import render_workspaces_page
 from ui_home import render_home_page
 from ui_import import render_import_page
 from ui_analyse import render_analyse_page
@@ -45,7 +53,7 @@ ROOT = Path(__file__).parent
 DATA = ROOT / "sample_data.csv"
 OUT = ROOT / "annotated_output.csv"
 OPTIONS = {
-    "language": ["— Select —", "English", "Hindi", "Other", "Uncertain"],
+    "language": ["— Select —", "English", "Hindi", "Hinglish", "Other", "Uncertain"],
     "sentiment": ["— Select —", "Positive", "Negative", "Neutral", "Not applicable", "Uncertain"],
     "text_type": ["— Select —", "Statement", "Question", "Request / Instruction", "Greeting", "Other", "Uncertain"],
     "review_status": ["— Select —", "Reviewed — looks correct", "Needs second review", "Ambiguous", "Skip"],
@@ -173,13 +181,69 @@ html, body, [class*="css"], .stApp {
 </style>
 """, unsafe_allow_html=True)
 
+# Initialize database schema
+init_db()
+
 # Engine initialization
 if "ml_engine" not in st.session_state:
     st.session_state.ml_engine = MLEngine()
 ml_engine = st.session_state.ml_engine
 
-# Active Dataset Ingestion & Session State
-if "active_df" not in st.session_state:
+
+# =============================================================================
+# AUTHENTICATION GATEWAY
+# =============================================================================
+
+auth_token = st.session_state.get("auth_token")
+current_user = st.session_state.get("current_user")
+is_guest = st.session_state.get("is_guest", False)
+
+# Validate token if present
+if auth_token:
+    user_id = verify_session_token(auth_token)
+    if not user_id:
+        st.session_state.auth_token = None
+        st.session_state.current_user = None
+        current_user = None
+
+if not current_user and not is_guest:
+    render_auth_page()
+    st.markdown("<hr style='border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 2rem 0 1rem 0;'>", unsafe_allow_html=True)
+    c_guest1, c_guest2, c_guest3 = st.columns([1, 2.2, 1])
+    with c_guest2:
+        if st.button("Continue as Demo Guest (Quick Local Inspection) →", use_container_width=True):
+            st.session_state.is_guest = True
+            st.rerun()
+    st.stop()
+
+
+# =============================================================================
+# WORKSPACE & DATASET CONTEXT
+# =============================================================================
+
+if current_user:
+    user_id = current_user["id"]
+    workspaces = list_workspaces(user_id)
+    if not workspaces:
+        from db.service import create_workspace
+        ws_new, _ = create_workspace(user_id, "Personal Workspace", "Default workspace")
+        workspaces = [ws_new] if ws_new else []
+
+    if "active_workspace_id" not in st.session_state or not st.session_state.active_workspace_id:
+        st.session_state.active_workspace_id = workspaces[0].id if workspaces else ""
+
+    # Synchronize active dataset if an active_dataset_id is set
+    active_ds_id = st.session_state.get("active_dataset_id")
+    if active_ds_id and ("active_df" not in st.session_state or st.session_state.active_df is None or st.session_state.active_df.empty):
+        df_loaded, _ = export_user_dataset_df(user_id, active_ds_id)
+        if df_loaded is not None and not df_loaded.empty:
+            st.session_state.active_df = df_loaded
+            ds_obj = get_dataset(user_id, active_ds_id)
+            if ds_obj:
+                st.session_state.active_dataset_key = ds_obj.name
+
+# Fallback initialization for guest or default sample
+if "active_df" not in st.session_state or st.session_state.active_df is None:
     sample_path = ROOT / "sample_data.csv"
     out_path = ROOT / "annotated_output.csv"
     if sample_path.exists():
@@ -196,12 +260,14 @@ if "active_df" not in st.session_state:
         st.session_state.active_storage_path = out_path
 
 df = st.session_state.active_df
-dataset_key = st.session_state.active_dataset_key
-storage_path = st.session_state.active_storage_path
+dataset_key = st.session_state.get("active_dataset_key", "default_sample")
+storage_path = st.session_state.get("active_storage_path", ROOT / "annotated_output.csv")
+
 
 # =============================================================================
-# SIDEBAR NAVIGATION (7 CLEAN BEGINNER-FRIENDLY PAGES)
+# SIDEBAR NAVIGATION & USER PROFILE
 # =============================================================================
+
 with st.sidebar:
     st.markdown("""
     <div class="sidebar-brand">
@@ -209,17 +275,62 @@ with st.sidebar:
         <div>
             <div style="display: flex; align-items: center; gap: 0.4rem;">
                 <span class="brand-title">LinguaLabel</span>
-                <span class="brand-badge">AI + Human</span>
+                <span class="brand-badge">Part 11</span>
             </div>
-            <div style="font-size: 0.74rem; color: #94a3b8; margin-top: 1px;">Multilingual Text Labelling</div>
+            <div style="font-size: 0.74rem; color: #94a3b8; margin-top: 1px;">Multi-User Annotation Suite</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
+    # User Profile Pill
+    if current_user:
+        st.markdown(f"""
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.75rem 0.9rem; margin-bottom: 0.75rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Signed In As</div>
+                    <div style="font-size: 0.92rem; font-weight: 700; color: #f8fafc; margin-top: 0.1rem;">👤 {current_user['username']}</div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("🚪 Sign Out", use_container_width=True, help="Log out of your account"):
+            logout_current_user()
+    else:
+        st.markdown("""
+        <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 0.65rem 0.85rem; margin-bottom: 0.75rem;">
+            <div style="font-size: 0.75rem; color: #fbbf24; font-weight: 600;">Demo Guest Mode</div>
+            <div style="font-size: 0.7rem; color: #cbd5e1; margin-top: 0.1rem;">Sign in to isolate personal workspaces.</div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("🔐 Sign In / Create Account", use_container_width=True):
+            st.session_state.is_guest = False
+            st.rerun()
+
+    # Workspace Switcher (if logged in)
+    if current_user and workspaces:
+        st.markdown('<div class="sidebar-section-title">Current Workspace</div>', unsafe_allow_html=True)
+        ws_dict = {w.name: w.id for w in workspaces}
+        curr_active_ws = st.session_state.get("active_workspace_id", workspaces[0].id)
+        default_name = next((name for name, wid in ws_dict.items() if wid == curr_active_ws), list(ws_dict.keys())[0])
+
+        sel_ws_sidebar = st.selectbox(
+            "Sidebar Workspace Selector",
+            list(ws_dict.keys()),
+            index=list(ws_dict.keys()).index(default_name),
+            label_visibility="collapsed",
+            key="sb_ws_select",
+        )
+        new_ws_id = ws_dict.get(sel_ws_sidebar)
+        if new_ws_id != st.session_state.get("active_workspace_id"):
+            st.session_state.active_workspace_id = new_ws_id
+            st.rerun()
+
     st.markdown('<div class="sidebar-section-title">Navigation</div>', unsafe_allow_html=True)
 
     nav_options = [
-        "Home",
+        "Personal Dashboard",
+        "Workspaces & Datasets",
         "Import Sentences",
         "Analyse & Label",
         "Review Suggestions",
@@ -228,24 +339,26 @@ with st.sidebar:
         "Settings",
     ]
 
-    # Handle URL query parameter routing with full backward-compatibility
+    # Handle URL query parameter routing
     default_idx = 0
     if "view" in st.query_params:
         qp = st.query_params.get("view", "").strip().lower()
-        if qp in ("home", "welcome"):
+        if qp in ("dashboard", "home", "welcome"):
             default_idx = 0
-        elif qp in ("import sentences", "import", "upload"):
+        elif qp in ("workspaces", "projects", "datasets"):
             default_idx = 1
-        elif qp in ("analyse & label", "annotate", "label", "analysis"):
+        elif qp in ("import sentences", "import", "upload"):
             default_idx = 2
-        elif qp in ("review suggestions", "active learning", "review"):
+        elif qp in ("analyse & label", "annotate", "label", "analysis"):
             default_idx = 3
-        elif qp in ("my results", "quality dashboard", "dataset overview", "results"):
+        elif qp in ("review suggestions", "active learning", "review"):
             default_idx = 4
-        elif qp in ("export data", "export", "download"):
+        elif qp in ("my results", "quality dashboard", "dataset overview", "results"):
             default_idx = 5
-        elif qp in ("settings", "model performance", "research"):
+        elif qp in ("export data", "export", "download"):
             default_idx = 6
+        elif qp in ("settings", "model performance", "research"):
+            default_idx = 7
 
     view = st.radio(
         "Navigation",
@@ -280,8 +393,17 @@ with st.sidebar:
 if "msg" in st.session_state:
     st.success(st.session_state.pop("msg"))
 
-if view == "Home":
-    render_home_page(ROOT, df)
+if view == "Personal Dashboard":
+    if current_user:
+        render_personal_dashboard(current_user)
+    else:
+        render_home_page(ROOT, df)
+
+elif view == "Workspaces & Datasets":
+    if current_user:
+        render_workspaces_page(ROOT, current_user)
+    else:
+        st.info("Please sign in or create an account to access workspaces and dataset management.")
 
 elif view == "Import Sentences":
     render_import_page(ROOT)

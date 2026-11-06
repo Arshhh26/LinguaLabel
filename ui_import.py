@@ -1,21 +1,20 @@
 """
-LinguaLabel — Import Sentences Page (Part 10)
+LinguaLabel — Import Sentences Page (Part 10 & 11)
 
-Beginner-friendly data ingestion supporting three simple input methods:
+Beginner-friendly data ingestion supporting:
 A. Upload a CSV or Excel spreadsheet (.csv, .xlsx, .xls)
 B. Paste multiple sentences (one per line)
 C. Enter a single sentence manually to test immediately
+D. Pre-loaded multilingual example sentences
 
-Features:
-- Clear column selector for identifying sentence text.
-- Live data preview with row and character counters.
-- Deterministic occurrence-safe ID generation.
-- Full dataset isolation in saved_sessions/.
-- Comprehensive Unicode preservation (Hindi, English, Hinglish, emojis).
+Multi-User Integration:
+- Allows selecting destination workspace.
+- Stores dataset in the database under user ownership.
+- Maintains local file persistence for backward compatibility.
 """
 
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 import streamlit as st
 
@@ -32,11 +31,36 @@ from data_manager import (
 )
 
 
+def _save_to_user_db(
+    current_user: Optional[Dict[str, Any]],
+    target_ws_id: Optional[str],
+    ds_name: str,
+    stable_df: pd.DataFrame,
+    orig_filename: Optional[str] = None,
+    dataset_key: Optional[str] = None,
+) -> None:
+    """Helper to save imported records into the user's active workspace."""
+    if not current_user or not target_ws_id or stable_df.empty:
+        return
+    try:
+        from db.service import create_dataset_with_sentences
+        records = [dict(r) for _, r in stable_df.iterrows()]
+        created_ds, _ = create_dataset_with_sentences(
+            user_id=current_user["id"],
+            workspace_id=target_ws_id,
+            name=ds_name,
+            records=records,
+            original_filename=orig_filename,
+            dataset_key=dataset_key,
+        )
+        if created_ds:
+            st.session_state.active_dataset_id = created_ds.id
+    except Exception:
+        pass
+
+
 def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional[str], Optional[Path]]:
-    """
-    Renders the Import Sentences interface.
-    Returns: (imported_df, dataset_key, storage_path) if imported, else (None, None, None).
-    """
+    """Renders the Import Sentences interface."""
     st.markdown("""
     <div class="header-container" style="margin-bottom: 1.25rem;">
         <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem;">
@@ -52,6 +76,27 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # Multi-User Workspace Selector (if user is authenticated)
+    current_user = st.session_state.get("current_user")
+    target_ws_id: Optional[str] = None
+
+    if current_user:
+        from db.service import list_workspaces
+        workspaces = list_workspaces(current_user["id"])
+        if workspaces:
+            ws_options = {w.name: w.id for w in workspaces}
+            curr_active_ws = st.session_state.get("active_workspace_id", workspaces[0].id)
+            default_ws_name = next((name for name, wid in ws_options.items() if wid == curr_active_ws), list(ws_options.keys())[0])
+
+            c_ws_lbl, c_ws_sel = st.columns([1.5, 3.5])
+            with c_ws_lbl:
+                st.markdown("<div style='margin-top: 0.5rem; font-size: 0.9rem; color: #94a3b8;'>Save into Workspace:</div>", unsafe_allow_html=True)
+            with c_ws_sel:
+                selected_ws_title = st.selectbox("Workspace", list(ws_options.keys()), index=list(ws_options.keys()).index(default_ws_name), label_visibility="collapsed")
+                target_ws_id = ws_options.get(selected_ws_title)
+                st.session_state.active_workspace_id = target_ws_id
+            st.markdown("<hr style='border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 0.75rem 0;'>", unsafe_allow_html=True)
 
     input_mode = st.radio(
         "Choose how you want to add sentences:",
@@ -73,7 +118,7 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
     # =========================================================================
     if input_mode == "📄 Upload a Spreadsheet (CSV or Excel)":
         st.markdown("#### Upload your file")
-        st.caption("Supports CSV (.csv) and Excel (.xlsx, .xls) files. Your data remains strictly local on your machine.")
+        st.caption("Supports CSV (.csv) and Excel (.xlsx, .xls) files. Your data is isolated to your personal account.")
 
         uploaded_file = st.file_uploader(
             "Choose a CSV or Excel file",
@@ -98,23 +143,23 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
             elif raw_df is not None and not raw_df.empty:
                 st.success(f"✓ Loaded '{uploaded_file.name}' with {len(raw_df)} rows and {len(raw_df.columns)} columns.")
 
-                # Choose the sentence column
                 col_options = list(raw_df.columns)
                 default_col = detect_text_column(raw_df)
                 default_idx = col_options.index(default_col) if default_col in col_options else 0
 
                 st.markdown("---")
-                st.markdown("#### 1. Choose the column containing your sentences")
-                st.caption("Tell LinguaLabel which column holds the text you want to analyze.")
+                c_c1, c_c2 = st.columns(2)
+                with c_c1:
+                    selected_col = st.selectbox(
+                        "1. Sentence Column",
+                        col_options,
+                        index=default_idx,
+                        help="Select the column with the sentence text."
+                    )
+                with c_c2:
+                    clean_ds_title = uploaded_file.name.rsplit(".", 1)[0].replace("_", " ").title()
+                    ds_name_input = st.text_input("Dataset Display Name", value=clean_ds_title)
 
-                selected_col = st.selectbox(
-                    "Sentence Column",
-                    col_options,
-                    index=default_idx,
-                    help="Select the column with the sentence or review text."
-                )
-
-                # Live preview
                 st.markdown("#### 2. Preview your data")
                 sample_preview = raw_df[[selected_col]].head(5).copy()
                 sample_preview.columns = ["Sentence Preview (First 5 Rows)"]
@@ -125,18 +170,20 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
 
                 st.markdown("---")
                 if st.button("🚀 Start Analysing This Dataset", type="primary", use_container_width=True):
-                    with st.spinner("Stabilizing dataset and preparing IDs..."):
+                    with st.spinner("Preparing dataset and initializing session..."):
                         stable_df, _ = stabilize_dataset(raw_df, selected_col, d_key)
                         if s_path.exists():
                             stable_df = merge_saved_annotations(stable_df, s_path)
                         else:
                             stable_df.to_csv(s_path, index=False, encoding="utf-8-sig")
 
+                        _save_to_user_db(current_user, target_ws_id, ds_name_input or clean_ds_title, stable_df, uploaded_file.name, d_key)
+
                         st.session_state.active_df = stable_df
-                        st.session_state.active_dataset_key = d_key
+                        st.session_state.active_dataset_key = ds_name_input or d_key
                         st.session_state.active_storage_path = s_path
                         st.session_state.idx = 0
-                        st.query_params["view"] = "Analyse & Label"
+                        st.session_state.main_nav_radio = "Analyse & Label"
                         st.rerun()
 
     # =========================================================================
@@ -145,6 +192,10 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
     elif input_mode == "📋 Paste multiple sentences (one per line)":
         st.markdown("#### Paste your sentences below")
         st.caption("Paste any text with one sentence per line. Hindi, English, and Hinglish are fully supported.")
+
+        c_p1, c_p2 = st.columns([3, 1.5])
+        with c_p2:
+            p_name = st.text_input("Dataset Name", value="Pasted Sentences Batch")
 
         pasted_text = st.text_area(
             "Sentences Text Area",
@@ -170,11 +221,13 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
                     else:
                         stable_df.to_csv(s_path, index=False, encoding="utf-8-sig")
 
+                    _save_to_user_db(current_user, target_ws_id, p_name or "Pasted Batch", stable_df, "pasted_text.txt", d_key)
+
                     st.session_state.active_df = stable_df
-                    st.session_state.active_dataset_key = d_key
+                    st.session_state.active_dataset_key = p_name or d_key
                     st.session_state.active_storage_path = s_path
                     st.session_state.idx = 0
-                    st.query_params["view"] = "Analyse & Label"
+                    st.session_state.main_nav_radio = "Analyse & Label"
                     st.rerun()
 
     # =========================================================================
@@ -204,11 +257,13 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
                     else:
                         stable_df.to_csv(s_path, index=False, encoding="utf-8-sig")
 
+                    _save_to_user_db(current_user, target_ws_id, "Single Sentence Query", stable_df, "single_sentence.txt", d_key)
+
                     st.session_state.active_df = stable_df
-                    st.session_state.active_dataset_key = d_key
+                    st.session_state.active_dataset_key = "Single Sentence"
                     st.session_state.active_storage_path = s_path
                     st.session_state.idx = 0
-                    st.query_params["view"] = "Analyse & Label"
+                    st.session_state.main_nav_radio = "Analyse & Label"
                     st.rerun()
 
     # =========================================================================
@@ -232,12 +287,13 @@ def render_import_page(root_dir: Path) -> Tuple[Optional[pd.DataFrame], Optional
                 else:
                     stable_df.to_csv(out_path, index=False, encoding="utf-8-sig")
 
+                _save_to_user_db(current_user, target_ws_id, "Pre-Loaded 20 Examples", stable_df, "sample_data.csv", "default_sample")
+
                 st.session_state.active_df = stable_df
                 st.session_state.active_dataset_key = "default_sample"
                 st.session_state.active_storage_path = out_path
                 st.session_state.idx = 0
-                st.query_params["view"] = "Analyse & Label"
+                st.session_state.main_nav_radio = "Analyse & Label"
                 st.rerun()
 
     return imported_df, dataset_key, storage_path
-
