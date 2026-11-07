@@ -48,7 +48,9 @@ def verify_admin_key(entered_key: str) -> bool:
     """
     if not entered_key or not isinstance(entered_key, str):
         return False
-    return hmac.compare_digest(entered_key.strip(), ADMIN_SECRET_KEY)
+    from db.config import get_admin_secret_key
+    target_key = get_admin_secret_key()
+    return hmac.compare_digest(entered_key.strip(), target_key)
 
 
 # =============================================================================

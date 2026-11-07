@@ -79,6 +79,13 @@ def render_owner_access_gate():
             help="Configured via LINGUALABEL_ADMIN_KEY environment variable.",
         )
 
+        from db.config import OWNER_KEY_CONFIGURED
+        if not OWNER_KEY_CONFIGURED:
+            st.info(
+                "💡 **Streamlit Cloud Setup**: To set your private owner key, open your Streamlit Cloud app dashboard → **Settings** (⋮) → **Secrets**, and enter:\n\n"
+                "```toml\nLINGUALABEL_ADMIN_KEY = \"your-secret-key-at-least-32-chars\"\n```"
+            )
+
         st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
         c_btn1, c_btn2 = st.columns([2, 1.2])
         with c_btn1:

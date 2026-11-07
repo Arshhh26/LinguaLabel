@@ -128,21 +128,32 @@ div[data-testid="stMetricValue"] {
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize database schema
-init_db()
+# Initialize database schema safely
+try:
+    init_db()
+except Exception:
+    pass
 
 # Initialize anonymous visitor & session analytics tracking
-if "_visitor_id" not in st.session_state:
-    q_vid = st.query_params.get("_vid", "").strip()
-    visitor, _ = get_or_create_visitor(visitor_id=q_vid if q_vid else None)
-    st.session_state["_visitor_id"] = visitor.id
-    st.query_params["_vid"] = visitor.id
+visitor_id = "anon_visitor"
+session_id = "anon_session"
+try:
+    if "_visitor_id" not in st.session_state:
+        q_vid = st.query_params.get("_vid", "").strip()
+        visitor, _ = get_or_create_visitor(visitor_id=q_vid if q_vid else None)
+        st.session_state["_visitor_id"] = visitor.id
+        st.query_params["_vid"] = visitor.id
 
-visitor_id = st.session_state["_visitor_id"]
-curr_sess_id = st.session_state.get("_session_id")
-v_sess, _ = register_or_resume_session(visitor_id, session_id=curr_sess_id)
-st.session_state["_session_id"] = v_sess.id
-session_id = v_sess.id
+    visitor_id = st.session_state["_visitor_id"]
+    curr_sess_id = st.session_state.get("_session_id")
+    v_sess, _ = register_or_resume_session(visitor_id, session_id=curr_sess_id)
+    st.session_state["_session_id"] = v_sess.id
+    session_id = v_sess.id
+except Exception:
+    if "_visitor_id" not in st.session_state:
+        st.session_state["_visitor_id"] = visitor_id
+    if "_session_id" not in st.session_state:
+        st.session_state["_session_id"] = session_id
 
 # Engine initialization
 if "ml_engine" not in st.session_state:
